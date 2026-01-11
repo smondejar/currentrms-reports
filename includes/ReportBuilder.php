@@ -473,83 +473,95 @@ class ReportBuilder
         }
 
         // Module-specific field mappings from CurrentRMS API nested structure
+        // Note: CurrentRMS API returns monetary values as strings with decimal places
         $fieldMappings = [
             'products' => [
-                'product_group_name' => ['product_group', 'name'],
-                'rental_rate' => ['rates', 0, 'price'],
-                'sale_price' => ['sale_price'],
-                'replacement_charge' => ['replacement_charge'],
-                'quantity_owned' => ['stock_level', 'quantity_owned'],
-                'quantity_available' => ['stock_level', 'quantity_available'],
+                'product_group_name' => [['product_group', 'name'], ['product_group_name']],
+                'rental_rate' => [['rates', 0, 'price'], ['rental_price'], ['rate']],
+                'sale_price' => [['sale_price'], ['sale_charge']],
+                'replacement_charge' => [['replacement_charge'], ['replacement_value']],
+                'quantity_owned' => [['stock_level', 'quantity_owned'], ['quantity_owned'], ['stock_method_quantity']],
+                'quantity_available' => [['stock_level', 'quantity_available'], ['quantity_available']],
             ],
             'members' => [
-                'company' => ['organisation', 'name'],
-                'email' => ['primary_email', 'address'],
-                'phone' => ['primary_telephone', 'number'],
-                'address_street' => ['primary_address', 'street'],
-                'address_city' => ['primary_address', 'city'],
-                'address_postcode' => ['primary_address', 'postcode'],
-                'address_country_name' => ['primary_address', 'country', 'name'],
-                'balance' => ['account_balance'],
+                'company' => [['organisation', 'name'], ['company_name']],
+                'email' => [['primary_email', 'address'], ['email']],
+                'phone' => [['primary_telephone', 'number'], ['telephone'], ['phone']],
+                'address_street' => [['primary_address', 'street'], ['street']],
+                'address_city' => [['primary_address', 'city'], ['city']],
+                'address_postcode' => [['primary_address', 'postcode'], ['postcode']],
+                'address_country_name' => [['primary_address', 'country', 'name'], ['country']],
+                'balance' => [['account_balance'], ['balance'], ['outstanding_balance']],
             ],
             'opportunities' => [
-                'member_name' => ['member', 'name'],
-                'venue_name' => ['venue', 'name'],
-                'charge_total' => ['charge_total'],
-                'tax_total' => ['tax_total'],
-                'grand_total' => ['grand_total'],
+                'member_name' => [['member', 'name'], ['billing_address', 'name'], ['customer_name']],
+                'venue_name' => [['venue', 'name'], ['destination', 'name'], ['delivery_address', 'name']],
+                'charge_total' => [['totals', 'charge_total'], ['charge_total'], ['rental_charge_total']],
+                'tax_total' => [['totals', 'tax_total'], ['tax_total']],
+                'grand_total' => [['totals', 'grand_total'], ['grand_total'], ['total']],
+                'rental_revenue' => [['rental_charge_total'], ['charge_total']],
             ],
             'invoices' => [
-                'member_name' => ['member', 'name'],
-                'number' => ['number'],
-                'invoice_date' => ['invoice_date'],
-                'due_date' => ['due_date'],
-                'subtotal' => ['subtotal'],
-                'tax_total' => ['tax_total'],
-                'total' => ['total'],
-                'amount_paid' => ['amount_paid'],
-                'balance' => ['balance'],
+                'member_name' => [['member', 'name'], ['billing_address', 'name']],
+                'number' => [['number'], ['invoice_number']],
+                'invoice_date' => [['invoice_date'], ['date']],
+                'due_date' => [['due_date'], ['payment_due_date']],
+                'subtotal' => [['totals', 'subtotal'], ['subtotal'], ['net_total']],
+                'tax_total' => [['totals', 'tax_total'], ['tax_total'], ['vat_total']],
+                'total' => [['totals', 'total'], ['total'], ['gross_total']],
+                'amount_paid' => [['amount_paid'], ['paid_total'], ['payments_total']],
+                'balance' => [['balance'], ['outstanding'], ['amount_due']],
             ],
             'projects' => [
-                'member_name' => ['member', 'name'],
-                'budget' => ['budget'],
-                'revenue' => ['revenue'],
+                'member_name' => [['member', 'name'], ['client_name']],
+                'budget' => [['budget'], ['budget_total']],
+                'revenue' => [['revenue'], ['revenue_total'], ['total_revenue']],
             ],
             'purchase_orders' => [
-                'supplier_name' => ['supplier', 'name'],
-                'number' => ['number'],
-                'order_date' => ['order_date'],
-                'expected_date' => ['expected_date'],
-                'subtotal' => ['subtotal'],
-                'tax_total' => ['tax_total'],
-                'total' => ['total'],
+                'supplier_name' => [['supplier', 'name'], ['vendor', 'name']],
+                'number' => [['number'], ['po_number']],
+                'order_date' => [['order_date'], ['date']],
+                'expected_date' => [['expected_date'], ['delivery_date']],
+                'subtotal' => [['totals', 'subtotal'], ['subtotal']],
+                'tax_total' => [['totals', 'tax_total'], ['tax_total']],
+                'total' => [['totals', 'total'], ['total']],
             ],
             'stock_levels' => [
-                'product_name' => ['product', 'name'],
-                'store_name' => ['store', 'name'],
-                'quantity' => ['quantity_owned'],
-                'quantity_available' => ['quantity_available'],
-                'quantity_booked' => ['quantity_booked'],
-                'quantity_sub_rent' => ['quantity_sub_rented'],
-                'quantity_quarantined' => ['quantity_quarantined'],
+                'product_name' => [['product', 'name'], ['item_name']],
+                'store_name' => [['store', 'name'], ['location_name']],
+                'quantity' => [['quantity_owned'], ['quantity']],
+                'quantity_available' => [['quantity_available'], ['available']],
+                'quantity_booked' => [['quantity_booked'], ['booked']],
+                'quantity_sub_rent' => [['quantity_sub_rented'], ['sub_rented']],
+                'quantity_quarantined' => [['quantity_quarantined'], ['quarantined']],
             ],
             'quarantines' => [
-                'item_name' => ['item', 'name'],
-                'store_name' => ['store', 'name'],
-                'quantity' => ['quantity'],
-                'reason' => ['reason'],
+                'item_name' => [['item', 'name'], ['product', 'name'], ['product_name']],
+                'store_name' => [['store', 'name'], ['location_name']],
+                'quantity' => [['quantity']],
+                'reason' => [['reason'], ['notes']],
             ],
         ];
 
-        // Apply module-specific mappings
+        // Apply module-specific mappings with fallback paths
         $mappings = $fieldMappings[$module] ?? [];
-        foreach ($mappings as $targetField => $sourcePath) {
-            // First try nested path
-            $value = $this->getNestedValue($row, $sourcePath);
-            if ($value !== null) {
-                $flattened[$targetField] = $value;
-            } elseif (!isset($flattened[$targetField])) {
-                // If nested path didn't work, check if field exists directly on row
+        foreach ($mappings as $targetField => $pathOptions) {
+            // Skip if already have a non-null value
+            if (isset($flattened[$targetField]) && $flattened[$targetField] !== null && $flattened[$targetField] !== '') {
+                continue;
+            }
+
+            // Try each path option until we find a value
+            foreach ($pathOptions as $sourcePath) {
+                $value = $this->getNestedValue($row, $sourcePath);
+                if ($value !== null && $value !== '') {
+                    $flattened[$targetField] = $value;
+                    break;
+                }
+            }
+
+            // If still no value, check direct field as last resort
+            if (!isset($flattened[$targetField]) || $flattened[$targetField] === null) {
                 $flattened[$targetField] = $row[$targetField] ?? null;
             }
         }
@@ -559,14 +571,15 @@ class ReportBuilder
             'rental_rate', 'sale_price', 'replacement_charge', 'weight',
             'quantity', 'quantity_owned', 'quantity_available', 'quantity_booked',
             'quantity_sub_rent', 'quantity_quarantined', 'balance', 'budget', 'revenue',
-            'charge_total', 'tax_total', 'grand_total', 'subtotal', 'total', 'amount_paid'
+            'charge_total', 'tax_total', 'grand_total', 'subtotal', 'total', 'amount_paid',
+            'rental_revenue', 'net_total', 'gross_total', 'vat_total'
         ];
         foreach ($numericFields as $field) {
-            if (isset($flattened[$field])) {
+            if (isset($flattened[$field]) && $flattened[$field] !== null) {
                 // Convert to float, handle string numbers
                 $val = $flattened[$field];
                 if (is_string($val)) {
-                    $val = str_replace(',', '', $val);
+                    $val = str_replace([',', '£', '$', '€'], '', $val);
                 }
                 $flattened[$field] = is_numeric($val) ? (float) $val : 0;
             }

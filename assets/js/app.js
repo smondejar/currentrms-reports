@@ -283,6 +283,10 @@ const ReportBuilder = {
     selectedColumns: [],
     filters: [],
     sorting: null,
+    currentPage: 1,
+    perPage: 25,
+    totalPages: 1,
+    totalRecords: 0,
 
     init() {
         this.bindEvents();
@@ -399,11 +403,19 @@ const ReportBuilder = {
         })).filter(f => f.field && f.value);
     },
 
-    async preview() {
+    async preview(page = 1) {
         const previewContainer = document.getElementById('report-preview');
         if (!previewContainer || !this.currentModule) return;
 
+        this.currentPage = page;
         previewContainer.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        // Get sorting from UI
+        const sortField = document.getElementById('sort-field')?.value;
+        const sortDirection = document.getElementById('sort-direction')?.value || 'asc';
+        if (sortField) {
+            this.sorting = { field: sortField, direction: sortDirection };
+        }
 
         try {
             const response = await fetch('api/reports/preview.php', {
@@ -415,6 +427,9 @@ const ReportBuilder = {
                     module: this.currentModule,
                     columns: this.selectedColumns,
                     filters: this.getFilters(),
+                    sorting: this.sorting,
+                    page: this.currentPage,
+                    per_page: this.perPage,
                 }),
             });
 
@@ -424,10 +439,21 @@ const ReportBuilder = {
                 throw new Error(data.error);
             }
 
+            // Store pagination info
+            if (data.meta) {
+                this.totalPages = data.meta.total_pages || 1;
+                this.totalRecords = data.meta.total || 0;
+            }
+
             this.renderPreview(data, previewContainer);
         } catch (error) {
             previewContainer.innerHTML = '<p class="text-danger">Failed to load preview: ' + error.message + '</p>';
         }
+    },
+
+    goToPage(page) {
+        if (page < 1 || page > this.totalPages) return;
+        this.preview(page);
     },
 
     renderPreview(data, container) {
@@ -465,13 +491,39 @@ const ReportBuilder = {
 
         html += '</tbody></table></div>';
 
-        // Pagination
+        // Pagination controls
         if (data.meta) {
+            const startRecord = ((this.currentPage - 1) * this.perPage) + 1;
+            const endRecord = Math.min(this.currentPage * this.perPage, data.meta.total);
+
             html += `
-                <div class="pagination">
+                <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-top: 1px solid var(--gray-200); margin-top: 16px;">
                     <span class="text-muted">
-                        Showing ${data.data.length} of ${data.meta.total} records
+                        Showing ${startRecord}-${endRecord} of ${data.meta.total} records
                     </span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn btn-sm btn-secondary" onclick="ReportBuilder.goToPage(1)" ${this.currentPage <= 1 ? 'disabled' : ''}>
+                            &laquo; First
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="ReportBuilder.goToPage(${this.currentPage - 1})" ${this.currentPage <= 1 ? 'disabled' : ''}>
+                            &lsaquo; Prev
+                        </button>
+                        <span style="padding: 0 12px;">
+                            Page ${this.currentPage} of ${this.totalPages}
+                        </span>
+                        <button class="btn btn-sm btn-secondary" onclick="ReportBuilder.goToPage(${this.currentPage + 1})" ${this.currentPage >= this.totalPages ? 'disabled' : ''}>
+                            Next &rsaquo;
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="ReportBuilder.goToPage(${this.totalPages})" ${this.currentPage >= this.totalPages ? 'disabled' : ''}>
+                            Last &raquo;
+                        </button>
+                        <select class="form-control" style="width: 80px; margin-left: 16px;" onchange="ReportBuilder.perPage = parseInt(this.value); ReportBuilder.preview(1);">
+                            <option value="10" ${this.perPage === 10 ? 'selected' : ''}>10</option>
+                            <option value="25" ${this.perPage === 25 ? 'selected' : ''}>25</option>
+                            <option value="50" ${this.perPage === 50 ? 'selected' : ''}>50</option>
+                            <option value="100" ${this.perPage === 100 ? 'selected' : ''}>100</option>
+                        </select>
+                    </div>
                 </div>
             `;
         }
