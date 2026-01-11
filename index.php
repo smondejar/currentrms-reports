@@ -22,6 +22,127 @@ $dashboard = Dashboard::getForUser(Auth::id());
 
 // Check if API is configured
 $apiConfigured = isApiConfigured();
+$api = getApiClient();
+
+// Fetch live stats if API is configured
+$stats = [
+    'opportunities' => ['count' => 0, 'error' => null],
+    'revenue' => ['value' => 0, 'error' => null],
+    'invoices' => ['count' => 0, 'error' => null],
+    'products' => ['count' => 0, 'error' => null],
+];
+
+$recentInvoices = [];
+$upcomingEvents = [];
+$revenueData = ['labels' => [], 'values' => []];
+$opportunityData = ['labels' => [], 'values' => []];
+
+if ($api) {
+    try {
+        // Get active opportunities count
+        $oppResponse = $api->get('opportunities', [
+            'per_page' => 1,
+            'filtermode' => 'active'
+        ]);
+        $stats['opportunities']['count'] = $oppResponse['meta']['total_row_count'] ?? 0;
+    } catch (Exception $e) {
+        $stats['opportunities']['error'] = $e->getMessage();
+    }
+
+    try {
+        // Get pending invoices count
+        $invResponse = $api->get('invoices', [
+            'per_page' => 1,
+            'q[state_eq]' => 'sent'
+        ]);
+        $stats['invoices']['count'] = $invResponse['meta']['total_row_count'] ?? 0;
+    } catch (Exception $e) {
+        $stats['invoices']['error'] = $e->getMessage();
+    }
+
+    try {
+        // Get products count
+        $prodResponse = $api->get('products', [
+            'per_page' => 1,
+            'filtermode' => 'active'
+        ]);
+        $stats['products']['count'] = $prodResponse['meta']['total_row_count'] ?? 0;
+    } catch (Exception $e) {
+        $stats['products']['error'] = $e->getMessage();
+    }
+
+    try {
+        // Get recent invoices for the table
+        $recentInvResponse = $api->get('invoices', [
+            'per_page' => 5,
+            'q[s]' => 'created_at desc'
+        ]);
+        $recentInvoices = $recentInvResponse['invoices'] ?? [];
+
+        // Calculate monthly revenue from recent invoices
+        $monthlyRevenue = 0;
+        $currentMonth = date('Y-m');
+        foreach ($recentInvResponse['invoices'] ?? [] as $inv) {
+            $invMonth = substr($inv['invoice_date'] ?? '', 0, 7);
+            if ($invMonth === $currentMonth) {
+                $monthlyRevenue += floatval($inv['total'] ?? 0);
+            }
+        }
+        $stats['revenue']['value'] = $monthlyRevenue;
+    } catch (Exception $e) {
+        $stats['revenue']['error'] = $e->getMessage();
+    }
+
+    try {
+        // Get upcoming opportunities for timeline
+        $today = date('Y-m-d');
+        $upcomingResponse = $api->get('opportunities', [
+            'per_page' => 5,
+            'q[starts_at_gteq]' => $today,
+            'q[s]' => 'starts_at asc',
+            'filtermode' => 'active'
+        ]);
+        $upcomingEvents = $upcomingResponse['opportunities'] ?? [];
+    } catch (Exception $e) {
+        // Silently fail for timeline
+    }
+
+    try {
+        // Get opportunity status breakdown for pie chart
+        $statusCounts = [];
+        $allOppResponse = $api->get('opportunities', [
+            'per_page' => 100,
+            'filtermode' => 'active'
+        ]);
+        foreach ($allOppResponse['opportunities'] ?? [] as $opp) {
+            $status = $opp['status'] ?? 'Unknown';
+            $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+        }
+        $opportunityData['labels'] = array_keys($statusCounts);
+        $opportunityData['values'] = array_values($statusCounts);
+    } catch (Exception $e) {
+        // Silently fail for chart
+    }
+
+    try {
+        // Get revenue by month for bar chart
+        $monthlyData = [];
+        $invForChart = $api->get('invoices', [
+            'per_page' => 100,
+            'q[s]' => 'invoice_date desc'
+        ]);
+        foreach ($invForChart['invoices'] ?? [] as $inv) {
+            $month = date('M Y', strtotime($inv['invoice_date'] ?? 'now'));
+            $monthlyData[$month] = ($monthlyData[$month] ?? 0) + floatval($inv['total'] ?? 0);
+        }
+        // Get last 6 months
+        $monthlyData = array_slice(array_reverse($monthlyData), 0, 6);
+        $revenueData['labels'] = array_keys($monthlyData);
+        $revenueData['values'] = array_values($monthlyData);
+    } catch (Exception $e) {
+        // Silently fail for chart
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,7 +185,13 @@ $apiConfigured = isApiConfigured();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">Active Opportunities</div>
-                            <div class="stat-value" id="stat-opportunities">--</div>
+                            <div class="stat-value">
+                                <?php if ($stats['opportunities']['error']): ?>
+                                    <span class="text-danger" style="font-size: 14px;">Error</span>
+                                <?php else: ?>
+                                    <?php echo number_format($stats['opportunities']['count']); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -76,7 +203,13 @@ $apiConfigured = isApiConfigured();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">Monthly Revenue</div>
-                            <div class="stat-value" id="stat-revenue">--</div>
+                            <div class="stat-value">
+                                <?php if ($stats['revenue']['error']): ?>
+                                    <span class="text-danger" style="font-size: 14px;">Error</span>
+                                <?php else: ?>
+                                    <?php echo formatCurrency($stats['revenue']['value']); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -89,7 +222,13 @@ $apiConfigured = isApiConfigured();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">Pending Invoices</div>
-                            <div class="stat-value" id="stat-invoices">--</div>
+                            <div class="stat-value">
+                                <?php if ($stats['invoices']['error']): ?>
+                                    <span class="text-danger" style="font-size: 14px;">Error</span>
+                                <?php else: ?>
+                                    <?php echo number_format($stats['invoices']['count']); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -101,56 +240,135 @@ $apiConfigured = isApiConfigured();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">Products in Stock</div>
-                            <div class="stat-value" id="stat-products">--</div>
+                            <div class="stat-value">
+                                <?php if ($stats['products']['error']): ?>
+                                    <span class="text-danger" style="font-size: 14px;">Error</span>
+                                <?php else: ?>
+                                    <?php echo number_format($stats['products']['count']); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Dashboard Grid -->
                 <div class="dashboard-grid" id="dashboard-grid">
-                    <!-- Widgets will be loaded dynamically -->
+                    <!-- Revenue Chart -->
                     <div class="widget" style="grid-column: span 6;">
                         <div class="widget-header">
                             <span class="widget-title">Revenue by Month</span>
                         </div>
                         <div class="widget-body">
                             <div class="chart-container">
-                                <canvas id="chart-revenue"></canvas>
+                                <?php if (empty($revenueData['values'])): ?>
+                                    <div class="empty-state" style="padding: 40px 20px;">
+                                        <p class="text-muted">No revenue data available</p>
+                                    </div>
+                                <?php else: ?>
+                                    <canvas id="chart-revenue"></canvas>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Opportunities Chart -->
                     <div class="widget" style="grid-column: span 6;">
                         <div class="widget-header">
                             <span class="widget-title">Opportunities by Status</span>
                         </div>
                         <div class="widget-body">
                             <div class="chart-container">
-                                <canvas id="chart-opportunities"></canvas>
+                                <?php if (empty($opportunityData['values'])): ?>
+                                    <div class="empty-state" style="padding: 40px 20px;">
+                                        <p class="text-muted">No opportunity data available</p>
+                                    </div>
+                                <?php else: ?>
+                                    <canvas id="chart-opportunities"></canvas>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Timeline -->
                     <div class="widget" style="grid-column: span 6;">
                         <div class="widget-header">
                             <span class="widget-title">Upcoming Events</span>
                         </div>
                         <div class="widget-body">
-                            <div class="timeline" id="timeline-events">
-                                <div class="text-muted text-center">Loading...</div>
-                            </div>
+                            <?php if (empty($upcomingEvents)): ?>
+                                <div class="empty-state" style="padding: 40px 20px;">
+                                    <p class="text-muted">No upcoming events</p>
+                                </div>
+                            <?php else: ?>
+                                <div class="timeline">
+                                    <?php foreach ($upcomingEvents as $event): ?>
+                                        <div class="timeline-item">
+                                            <div class="timeline-date">
+                                                <?php echo formatDate($event['starts_at'] ?? '', 'M j, Y'); ?>
+                                            </div>
+                                            <div class="timeline-title">
+                                                <?php echo e($event['subject'] ?? 'Untitled'); ?>
+                                            </div>
+                                            <?php if (!empty($event['member']['name'])): ?>
+                                                <div class="timeline-desc">
+                                                    <?php echo e($event['member']['name']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
+                    <!-- Recent Invoices -->
                     <div class="widget" style="grid-column: span 6;">
                         <div class="widget-header">
                             <span class="widget-title">Recent Invoices</span>
                             <a href="reports.php?module=invoices" class="btn btn-sm btn-secondary">View All</a>
                         </div>
                         <div class="widget-body">
-                            <div class="table-container" id="recent-invoices">
-                                <div class="text-muted text-center">Loading...</div>
-                            </div>
+                            <?php if (empty($recentInvoices)): ?>
+                                <div class="empty-state" style="padding: 40px 20px;">
+                                    <p class="text-muted">No invoices found</p>
+                                </div>
+                            <?php else: ?>
+                                <div class="table-container">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice</th>
+                                                <th>Customer</th>
+                                                <th class="text-right">Amount</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($recentInvoices as $invoice): ?>
+                                                <tr>
+                                                    <td><?php echo e($invoice['number'] ?? $invoice['id']); ?></td>
+                                                    <td><?php echo e($invoice['member']['name'] ?? 'N/A'); ?></td>
+                                                    <td class="text-right"><?php echo formatCurrency($invoice['total'] ?? 0); ?></td>
+                                                    <td>
+                                                        <?php
+                                                        $state = $invoice['state'] ?? 'draft';
+                                                        $badgeClass = match($state) {
+                                                            'paid' => 'badge-success',
+                                                            'sent', 'approved' => 'badge-warning',
+                                                            'void' => 'badge-danger',
+                                                            default => 'badge-gray'
+                                                        };
+                                                        ?>
+                                                        <span class="badge <?php echo $badgeClass; ?>">
+                                                            <?php echo ucfirst($state); ?>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -217,39 +435,51 @@ $apiConfigured = isApiConfigured();
 
     <script src="assets/js/app.js"></script>
     <script>
-        // Initialize demo charts
         document.addEventListener('DOMContentLoaded', function() {
+            <?php if (!empty($revenueData['values'])): ?>
             // Revenue Chart
             const revenueCtx = document.getElementById('chart-revenue');
             if (revenueCtx) {
                 new Chart(revenueCtx, {
                     type: 'bar',
                     data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        labels: <?php echo json_encode($revenueData['labels']); ?>,
                         datasets: [{
                             label: 'Revenue',
-                            data: [12000, 19000, 15000, 25000, 22000, 30000],
+                            data: <?php echo json_encode($revenueData['values']); ?>,
                             backgroundColor: 'rgba(102, 126, 234, 0.8)',
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
+            <?php endif; ?>
 
+            <?php if (!empty($opportunityData['values'])): ?>
             // Opportunities Chart
             const oppCtx = document.getElementById('chart-opportunities');
             if (oppCtx) {
                 new Chart(oppCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Confirmed', 'Provisional', 'Quote Sent', 'Draft'],
+                        labels: <?php echo json_encode($opportunityData['labels']); ?>,
                         datasets: [{
-                            data: [45, 25, 20, 10],
-                            backgroundColor: ['#10b981', '#667eea', '#f59e0b', '#9ca3af'],
+                            data: <?php echo json_encode($opportunityData['values']); ?>,
+                            backgroundColor: ['#10b981', '#667eea', '#f59e0b', '#9ca3af', '#ef4444', '#8b5cf6'],
                         }]
                     },
                     options: {
@@ -259,34 +489,7 @@ $apiConfigured = isApiConfigured();
                     }
                 });
             }
-
-            // Load timeline
-            document.getElementById('timeline-events').innerHTML = `
-                <div class="timeline-item">
-                    <div class="timeline-date">Tomorrow</div>
-                    <div class="timeline-title">Equipment pickup - ABC Corp</div>
-                </div>
-                <div class="timeline-item">
-                    <div class="timeline-date">Jan 15</div>
-                    <div class="timeline-title">Wedding Setup - Grand Hotel</div>
-                </div>
-                <div class="timeline-item">
-                    <div class="timeline-date">Jan 18</div>
-                    <div class="timeline-title">Conference Equipment - Tech Inc</div>
-                </div>
-            `;
-
-            // Load recent invoices
-            document.getElementById('recent-invoices').innerHTML = `
-                <table class="table">
-                    <thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
-                    <tbody>
-                        <tr><td>INV-001</td><td>ABC Corp</td><td>$2,500.00</td><td><span class="badge badge-success">Paid</span></td></tr>
-                        <tr><td>INV-002</td><td>XYZ Ltd</td><td>$1,850.00</td><td><span class="badge badge-warning">Pending</span></td></tr>
-                        <tr><td>INV-003</td><td>Tech Inc</td><td>$3,200.00</td><td><span class="badge badge-danger">Overdue</span></td></tr>
-                    </tbody>
-                </table>
-            `;
+            <?php endif; ?>
         });
     </script>
 </body>
