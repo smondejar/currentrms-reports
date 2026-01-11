@@ -1,0 +1,17 @@
+name: CI -> Deploy to My website
+on:
+  push:
+    branches: [ main, development ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Here is the deployment action
+      - name: Upload from public_html via FTP
+        uses: airvzxf/ftp-deployment-action@latest
+        with:
+          server: access867548530.webspace-data.io
+          user: u104413489
+          password: Liverpool&007
+          local_dir: "./currentrms-reports"
