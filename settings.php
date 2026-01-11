@@ -139,10 +139,12 @@ if (!empty($apiConfig['subdomain']) && !empty($apiConfig['api_token'])) {
                                     <div class="form-hint">Get this from System Setup → Integrations → API in CurrentRMS</div>
                                 </div>
                             </div>
-                            <div class="card-footer">
+                            <div class="card-footer" style="display: flex; gap: 12px;">
                                 <button type="submit" class="btn btn-primary">Save API Settings</button>
+                                <button type="button" class="btn btn-secondary" id="test-api-btn">Test Connection</button>
                             </div>
                         </form>
+                        <div id="api-test-result" style="display: none; padding: 16px; border-top: 1px solid var(--gray-200);"></div>
                     </div>
 
                     <!-- General Settings -->
@@ -234,5 +236,48 @@ if (!empty($apiConfig['subdomain']) && !empty($apiConfig['api_token'])) {
     </div>
 
     <script src="assets/js/app.js"></script>
+    <script>
+        document.getElementById('test-api-btn').addEventListener('click', async function() {
+            const btn = this;
+            const resultDiv = document.getElementById('api-test-result');
+            const subdomain = document.querySelector('input[name="api_subdomain"]').value;
+            const apiToken = document.querySelector('input[name="api_token"]').value;
+
+            if (!subdomain || !apiToken) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<div class="alert alert-warning" style="margin: 0;">Please enter both subdomain and API token.</div>';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="text-muted">Connecting to CurrentRMS API...</div>';
+
+            try {
+                const formData = new FormData();
+                formData.append('subdomain', subdomain);
+                formData.append('api_token', apiToken);
+
+                const response = await fetch('api/test-connection.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="alert alert-success" style="margin: 0;"><strong>Success!</strong> ' + data.message + '</div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger" style="margin: 0;"><strong>Connection Failed:</strong> ' + data.error + '</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="alert alert-danger" style="margin: 0;"><strong>Error:</strong> Failed to test connection. Please try again.</div>';
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Test Connection';
+        });
+    </script>
 </body>
 </html>
