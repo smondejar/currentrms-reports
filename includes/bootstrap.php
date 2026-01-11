@@ -4,21 +4,29 @@
  * Include this file at the beginning of every page
  */
 
-// Error reporting (disable in production)
+// Error reporting - show errors in development
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);  // Enable for debugging - disable in production
 ini_set('log_errors', 1);
 
 // Define base path
 define('BASE_PATH', dirname(__DIR__));
 
-// Load configuration
-$dbConfig = require BASE_PATH . '/config/database.php';
-$apiConfig = require BASE_PATH . '/config/api.php';
-$appConfig = require BASE_PATH . '/config/app.php';
+// Check if installed
+$installedFile = BASE_PATH . '/.installed';
+$isInstalled = file_exists($installedFile);
+
+// Load configuration with error handling
+try {
+    $dbConfig = require BASE_PATH . '/config/database.php';
+    $apiConfig = require BASE_PATH . '/config/api.php';
+    $appConfig = require BASE_PATH . '/config/app.php';
+} catch (Exception $e) {
+    die('Configuration error: ' . $e->getMessage());
+}
 
 // Set timezone
-date_default_timezone_set($appConfig['timezone']);
+date_default_timezone_set($appConfig['timezone'] ?? 'UTC');
 
 // Autoload classes
 spl_autoload_register(function ($class) {
@@ -28,16 +36,40 @@ spl_autoload_register(function ($class) {
     }
 });
 
-// Initialize database
-Database::init($dbConfig);
+// Initialize database only if installed and credentials are set
+$databaseInitialized = false;
+if ($isInstalled && !empty($dbConfig['username'])) {
+    try {
+        Database::init($dbConfig);
+        $databaseInitialized = true;
+    } catch (PDOException $e) {
+        // Database connection failed - show helpful message
+        if (strpos($_SERVER['REQUEST_URI'], '/install') === false) {
+            die('<h1>Database Connection Error</h1><p>' . htmlspecialchars($e->getMessage()) . '</p><p>Please check your database configuration in <code>config/database.php</code> or <a href="install/">run the installer</a>.</p>');
+        }
+    }
+}
 
-// Initialize authentication
-Auth::init();
+// Initialize authentication only if database is ready
+if ($databaseInitialized) {
+    try {
+        Auth::init();
+    } catch (Exception $e) {
+        // Auth init failed - likely tables don't exist
+        if (strpos($_SERVER['REQUEST_URI'], '/install') === false) {
+            die('<h1>Database Error</h1><p>Database tables may not exist. Please <a href="install/">run the installer</a>.</p><p>Error: ' . htmlspecialchars($e->getMessage()) . '</p>');
+        }
+    }
+}
 
 // Create API client (only if configured)
 $apiClient = null;
 if (!empty($apiConfig['subdomain']) && !empty($apiConfig['api_token'])) {
-    $apiClient = new CurrentRMSClient($apiConfig);
+    try {
+        $apiClient = new CurrentRMSClient($apiConfig);
+    } catch (Exception $e) {
+        // Silently fail - API not critical for app to work
+    }
 }
 
 // Helper functions
@@ -75,9 +107,9 @@ function config(string $key = null)
 /**
  * Escape HTML
  */
-function e(string $value): string
+function e(?string $value): string
 {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
 /**
@@ -129,6 +161,10 @@ function redirect(string $url): void
  */
 function flash(string $key, string $message = null)
 {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
     if ($message !== null) {
         $_SESSION['flash'][$key] = $message;
         return null;
@@ -172,6 +208,9 @@ function input(string $key, $default = null)
  */
 function validateCsrf(): bool
 {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     $token = $_POST['_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     return hash_equals($_SESSION['csrf_token'] ?? '', $token);
 }
@@ -181,6 +220,9 @@ function validateCsrf(): bool
  */
 function csrfToken(): string
 {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -219,7 +261,11 @@ function getApiClient(): ?CurrentRMSClient
 function logMessage(string $message, string $level = 'info'): void
 {
     global $appConfig;
-    $logFile = $appConfig['logs_path'] . date('Y-m-d') . '.log';
+    $logPath = $appConfig['logs_path'] ?? BASE_PATH . '/storage/logs/';
+    if (!is_dir($logPath)) {
+        @mkdir($logPath, 0755, true);
+    }
+    $logFile = $logPath . date('Y-m-d') . '.log';
     $timestamp = date('Y-m-d H:i:s');
     $line = "[{$timestamp}] [{$level}] {$message}" . PHP_EOL;
     @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
