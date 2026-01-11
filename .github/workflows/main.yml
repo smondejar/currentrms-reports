@@ -16,3 +16,4 @@ jobs:
           password: Liverpool&007
           local_dir: "./"
           remote_dir: "./currentrms-reports"
+          ftp_ssl_allow: "true"
