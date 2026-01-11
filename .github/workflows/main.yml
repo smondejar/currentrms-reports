@@ -11,7 +11,7 @@ jobs:
       - name: Upload from public_html via FTP
         uses: airvzxf/ftp-deployment-action@latest
         with:
-          server: access867548530.webspace-data.io
-          user: u104413489
-          password: Liverpool&007
+          server: "access867548530.webspace-data.io"
+          user: "u104413489"
+          password: "Liverpool&007"
           local_dir: "./currentrms-reports"
