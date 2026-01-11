@@ -281,6 +281,7 @@ const App = {
 const ReportBuilder = {
     currentModule: null,
     selectedColumns: [],
+    availableColumns: [],
     filters: [],
     sorting: null,
     currentPage: 1,
@@ -341,6 +342,9 @@ const ReportBuilder = {
                 throw new Error(data.error);
             }
 
+            // Store available columns for filters
+            this.availableColumns = data.columns;
+
             container.innerHTML = data.columns.map(col => `
                 <label class="checkbox-item">
                     <input type="checkbox" class="column-checkbox" value="${col.key}" checked>
@@ -349,9 +353,28 @@ const ReportBuilder = {
             `).join('');
 
             this.selectedColumns = data.columns.map(c => c.key);
+
+            // Update sort field dropdown
+            this.updateSortFields();
+
+            // Clear existing filters when module changes
+            const filterContainer = document.getElementById('filter-list');
+            if (filterContainer) {
+                filterContainer.innerHTML = '';
+            }
         } catch (error) {
             container.innerHTML = '<p class="text-danger">Failed to load columns: ' + error.message + '</p>';
         }
+    },
+
+    updateSortFields() {
+        const sortField = document.getElementById('sort-field');
+        if (!sortField) return;
+
+        sortField.innerHTML = '<option value="">Select field...</option>' +
+            this.availableColumns.map(col =>
+                `<option value="${col.key}">${col.label}</option>`
+            ).join('');
     },
 
     updateColumns() {
@@ -363,22 +386,36 @@ const ReportBuilder = {
         const filterContainer = document.getElementById('filter-list');
         if (!filterContainer) return;
 
+        if (!this.availableColumns || this.availableColumns.length === 0) {
+            App.showNotification('Please select a module first', 'warning');
+            return;
+        }
+
         const filterId = Date.now();
+        const fieldOptions = this.availableColumns.map(col =>
+            `<option value="${col.key}">${col.label}</option>`
+        ).join('');
+
         const filterHtml = `
-            <div class="filter-row" data-filter-id="${filterId}">
-                <select class="form-control filter-field" style="width: 150px;">
+            <div class="filter-row" data-filter-id="${filterId}" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+                <select class="form-control filter-field" style="flex: 1; min-width: 140px;">
                     <option value="">Select field...</option>
+                    ${fieldOptions}
                 </select>
-                <select class="form-control filter-predicate" style="width: 120px;">
+                <select class="form-control filter-predicate" style="width: 130px;">
                     <option value="eq">Equals</option>
+                    <option value="not_eq">Not equals</option>
                     <option value="cont">Contains</option>
+                    <option value="not_cont">Not contains</option>
                     <option value="gt">Greater than</option>
                     <option value="lt">Less than</option>
                     <option value="gteq">Greater or equal</option>
                     <option value="lteq">Less or equal</option>
+                    <option value="null">Is empty</option>
+                    <option value="not_null">Is not empty</option>
                 </select>
-                <input type="text" class="form-control filter-value" placeholder="Value">
-                <button type="button" class="btn btn-icon btn-danger remove-filter">
+                <input type="text" class="form-control filter-value" placeholder="Value" style="flex: 1; min-width: 120px;">
+                <button type="button" class="btn btn-icon btn-danger remove-filter" style="flex-shrink: 0;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6L6 18M6 6l12 12"/>
                     </svg>

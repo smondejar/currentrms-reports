@@ -346,13 +346,18 @@ class ReportBuilder
             }, $data);
         }
 
+        // Calculate total and pages
+        $totalCount = $meta['total_row_count'] ?? count($data);
+        $currentPerPage = $meta['per_page'] ?? $this->perPage;
+        $totalPages = $meta['total_pages'] ?? ($totalCount > 0 ? (int) ceil($totalCount / $currentPerPage) : 1);
+
         return [
             'data' => $data,
             'meta' => [
-                'total' => $meta['total_row_count'] ?? count($data),
+                'total' => $totalCount,
                 'page' => $meta['page'] ?? $this->page,
-                'per_page' => $meta['per_page'] ?? $this->perPage,
-                'total_pages' => $meta['total_pages'] ?? 1,
+                'per_page' => $currentPerPage,
+                'total_pages' => $totalPages,
             ],
             'module' => $this->currentModule,
             'columns' => $this->columns ?: array_keys($module['columns']),
