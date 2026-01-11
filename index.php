@@ -433,9 +433,15 @@ if ($api) {
         </div>
     </div>
 
+    <script>
+        // Set currency symbol from config
+        window.APP_CURRENCY = '<?php echo e(config('app.currency_symbol') ?? '£'); ?>';
+    </script>
     <script src="assets/js/app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const currencySymbol = window.APP_CURRENCY || '£';
+
             <?php if (!empty($revenueData['values'])): ?>
             // Revenue Chart
             const revenueCtx = document.getElementById('chart-revenue');
@@ -459,7 +465,7 @@ if ($api) {
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function(value) {
-                                        return '$' + value.toLocaleString();
+                                        return currencySymbol + value.toLocaleString();
                                     }
                                 }
                             }

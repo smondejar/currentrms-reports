@@ -327,8 +327,13 @@ class ReportBuilder
         $response = $this->api->get($module['endpoint'], $params);
 
         $dataKey = $module['endpoint'];
-        $data = $response[$dataKey] ?? [];
+        $rawData = $response[$dataKey] ?? [];
         $meta = $response['meta'] ?? [];
+
+        // Transform data to flatten nested objects from CurrentRMS API
+        $data = array_map(function ($row) {
+            return $this->flattenRow($row, $this->currentModule);
+        }, $rawData);
 
         // Filter columns if specified
         if (!empty($this->columns)) {
@@ -378,7 +383,12 @@ class ReportBuilder
             $params['q[s]'] = $this->sorting['field'] . ' ' . $this->sorting['direction'];
         }
 
-        $data = $this->api->fetchAll($module['endpoint'], $params, ceil($maxRows / 100));
+        $rawData = $this->api->fetchAll($module['endpoint'], $params, ceil($maxRows / 100));
+
+        // Transform data to flatten nested objects
+        $data = array_map(function ($row) {
+            return $this->flattenRow($row, $this->currentModule);
+        }, $rawData);
 
         // Filter columns if specified
         if (!empty($this->columns)) {
@@ -446,5 +456,138 @@ class ReportBuilder
         $this->page = 1;
         $this->perPage = 25;
         return $this;
+    }
+
+    /**
+     * Flatten nested objects from CurrentRMS API response to match column definitions
+     */
+    private function flattenRow(array $row, string $module): array
+    {
+        $flattened = [];
+
+        // Start with direct copies of simple scalar fields
+        foreach ($row as $key => $value) {
+            if (!is_array($value) && !is_object($value)) {
+                $flattened[$key] = $value;
+            }
+        }
+
+        // Module-specific field mappings from CurrentRMS API nested structure
+        $fieldMappings = [
+            'products' => [
+                'product_group_name' => ['product_group', 'name'],
+                'rental_rate' => ['rates', 0, 'price'],
+                'sale_price' => ['sale_price'],
+                'replacement_charge' => ['replacement_charge'],
+                'quantity_owned' => ['stock_level', 'quantity_owned'],
+                'quantity_available' => ['stock_level', 'quantity_available'],
+            ],
+            'members' => [
+                'company' => ['organisation', 'name'],
+                'email' => ['primary_email', 'address'],
+                'phone' => ['primary_telephone', 'number'],
+                'address_street' => ['primary_address', 'street'],
+                'address_city' => ['primary_address', 'city'],
+                'address_postcode' => ['primary_address', 'postcode'],
+                'address_country_name' => ['primary_address', 'country', 'name'],
+                'balance' => ['account_balance'],
+            ],
+            'opportunities' => [
+                'member_name' => ['member', 'name'],
+                'venue_name' => ['venue', 'name'],
+                'charge_total' => ['charge_total'],
+                'tax_total' => ['tax_total'],
+                'grand_total' => ['grand_total'],
+            ],
+            'invoices' => [
+                'member_name' => ['member', 'name'],
+                'number' => ['number'],
+                'invoice_date' => ['invoice_date'],
+                'due_date' => ['due_date'],
+                'subtotal' => ['subtotal'],
+                'tax_total' => ['tax_total'],
+                'total' => ['total'],
+                'amount_paid' => ['amount_paid'],
+                'balance' => ['balance'],
+            ],
+            'projects' => [
+                'member_name' => ['member', 'name'],
+                'budget' => ['budget'],
+                'revenue' => ['revenue'],
+            ],
+            'purchase_orders' => [
+                'supplier_name' => ['supplier', 'name'],
+                'number' => ['number'],
+                'order_date' => ['order_date'],
+                'expected_date' => ['expected_date'],
+                'subtotal' => ['subtotal'],
+                'tax_total' => ['tax_total'],
+                'total' => ['total'],
+            ],
+            'stock_levels' => [
+                'product_name' => ['product', 'name'],
+                'store_name' => ['store', 'name'],
+                'quantity' => ['quantity_owned'],
+                'quantity_available' => ['quantity_available'],
+                'quantity_booked' => ['quantity_booked'],
+                'quantity_sub_rent' => ['quantity_sub_rented'],
+                'quantity_quarantined' => ['quantity_quarantined'],
+            ],
+            'quarantines' => [
+                'item_name' => ['item', 'name'],
+                'store_name' => ['store', 'name'],
+                'quantity' => ['quantity'],
+                'reason' => ['reason'],
+            ],
+        ];
+
+        // Apply module-specific mappings
+        $mappings = $fieldMappings[$module] ?? [];
+        foreach ($mappings as $targetField => $sourcePath) {
+            // First try nested path
+            $value = $this->getNestedValue($row, $sourcePath);
+            if ($value !== null) {
+                $flattened[$targetField] = $value;
+            } elseif (!isset($flattened[$targetField])) {
+                // If nested path didn't work, check if field exists directly on row
+                $flattened[$targetField] = $row[$targetField] ?? null;
+            }
+        }
+
+        // Ensure numeric values for currency/number fields are properly typed
+        $numericFields = [
+            'rental_rate', 'sale_price', 'replacement_charge', 'weight',
+            'quantity', 'quantity_owned', 'quantity_available', 'quantity_booked',
+            'quantity_sub_rent', 'quantity_quarantined', 'balance', 'budget', 'revenue',
+            'charge_total', 'tax_total', 'grand_total', 'subtotal', 'total', 'amount_paid'
+        ];
+        foreach ($numericFields as $field) {
+            if (isset($flattened[$field])) {
+                // Convert to float, handle string numbers
+                $val = $flattened[$field];
+                if (is_string($val)) {
+                    $val = str_replace(',', '', $val);
+                }
+                $flattened[$field] = is_numeric($val) ? (float) $val : 0;
+            }
+        }
+
+        return $flattened;
+    }
+
+    /**
+     * Get a nested value from an array using a path array
+     */
+    private function getNestedValue(array $data, array $path)
+    {
+        $current = $data;
+        foreach ($path as $key) {
+            if (is_array($current) && isset($current[$key])) {
+                $current = $current[$key];
+            } else {
+                return null;
+            }
+        }
+        return $current;
     }
 }

@@ -265,6 +265,10 @@ $savedReports = ReportManager::getForUser(Auth::id());
         </div>
     </div>
 
+    <script>
+        // Set currency symbol from config
+        window.APP_CURRENCY = '<?php echo e(config('app.currency_symbol') ?? '£'); ?>';
+    </script>
     <script src="assets/js/app.js"></script>
     <script>
         // Initialize report builder

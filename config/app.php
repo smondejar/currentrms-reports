@@ -13,6 +13,7 @@ return [
     'session_lifetime' => 120, // minutes
     'items_per_page' => 25,
     'max_export_rows' => 10000,
+    'currency_symbol' => '£', // Currency symbol: £, $, €, etc.
     'upload_path' => __DIR__ . '/../storage/uploads/',
     'cache_path' => __DIR__ . '/../storage/cache/',
     'logs_path' => __DIR__ . '/../storage/logs/',

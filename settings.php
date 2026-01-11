@@ -187,9 +187,25 @@ if (!empty($apiConfig['subdomain']) && !empty($apiConfig['api_token'])) {
 
                                 <div class="form-group">
                                     <label class="form-label">Currency Symbol</label>
-                                    <input type="text" name="currency_symbol" class="form-control"
-                                           value="<?php echo e($settings['currency_symbol'] ?? '$'); ?>"
-                                           style="width: 100px;">
+                                    <select name="currency_symbol" class="form-control" style="width: 200px;">
+                                        <?php
+                                        $currencies = [
+                                            '£' => '£ - British Pound',
+                                            '$' => '$ - US Dollar',
+                                            '€' => '€ - Euro',
+                                            'A$' => 'A$ - Australian Dollar',
+                                            'C$' => 'C$ - Canadian Dollar',
+                                            'NZ$' => 'NZ$ - New Zealand Dollar',
+                                            'CHF' => 'CHF - Swiss Franc',
+                                            'R' => 'R - South African Rand',
+                                            'AED' => 'AED - UAE Dirham',
+                                        ];
+                                        $currentSymbol = $settings['currency_symbol'] ?? config('app.currency_symbol') ?? '£';
+                                        foreach ($currencies as $symbol => $label):
+                                        ?>
+                                            <option value="<?php echo e($symbol); ?>" <?php echo $currentSymbol === $symbol ? 'selected' : ''; ?>><?php echo e($label); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                             <div class="card-footer">

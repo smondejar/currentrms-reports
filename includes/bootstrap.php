@@ -115,9 +115,18 @@ function e(?string $value): string
 /**
  * Format currency
  */
-function formatCurrency($value, string $symbol = '$'): string
+function formatCurrency($value, ?string $symbol = null): string
 {
-    return $symbol . number_format((float) $value, 2);
+    global $appConfig;
+    if ($symbol === null) {
+        $symbol = $appConfig['currency_symbol'] ?? '£';
+    }
+    $numValue = (float) $value;
+    // Handle non-numeric values gracefully
+    if (!is_numeric($value) && $value !== null && $value !== '') {
+        return '';
+    }
+    return $symbol . number_format($numValue, 2);
 }
 
 /**

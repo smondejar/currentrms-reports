@@ -480,20 +480,39 @@ const ReportBuilder = {
     },
 
     formatValue(value, type) {
-        if (value === null || value === undefined) return '';
+        // Handle null, undefined, empty string, and empty values
+        if (value === null || value === undefined || value === '') return '';
+
+        // Handle objects/arrays - shouldn't be passed but just in case
+        if (typeof value === 'object') {
+            return '';
+        }
 
         switch (type) {
             case 'currency':
-                return '$' + parseFloat(value).toLocaleString(undefined, {
+                const numVal = parseFloat(value);
+                // Check for NaN and invalid numbers
+                if (isNaN(numVal)) return '';
+                // Get currency symbol from config or default to £
+                const currencySymbol = window.APP_CURRENCY || '£';
+                return currencySymbol + numVal.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
             case 'number':
-                return parseFloat(value).toLocaleString();
+                const num = parseFloat(value);
+                if (isNaN(num)) return '';
+                return num.toLocaleString();
             case 'date':
-                return new Date(value).toLocaleDateString();
+                if (!value) return '';
+                const dateVal = new Date(value);
+                if (isNaN(dateVal.getTime())) return String(value);
+                return dateVal.toLocaleDateString();
             case 'datetime':
-                return new Date(value).toLocaleString();
+                if (!value) return '';
+                const dtVal = new Date(value);
+                if (isNaN(dtVal.getTime())) return String(value);
+                return dtVal.toLocaleString();
             case 'boolean':
                 return value ? 'Yes' : 'No';
             default:
@@ -633,18 +652,23 @@ const Dashboard = {
     },
 
     renderStatCard(data, container, config) {
+        const currencySymbol = window.APP_CURRENCY || '£';
+        const numericValue = parseFloat(data.value || 0);
+        const safeValue = isNaN(numericValue) ? 0 : numericValue;
+
         const value = config.format === 'currency'
-            ? '$' + parseFloat(data.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2})
-            : parseFloat(data.value || 0).toLocaleString();
+            ? currencySymbol + safeValue.toLocaleString(undefined, {minimumFractionDigits: 2})
+            : safeValue.toLocaleString();
 
         const changeClass = data.change >= 0 ? 'up' : 'down';
         const changeIcon = data.change >= 0 ? '↑' : '↓';
+        const changeVal = parseFloat(data.change);
 
         container.innerHTML = `
             <div class="stat-value">${value}</div>
-            ${data.change !== undefined ? `
+            ${data.change !== undefined && !isNaN(changeVal) ? `
                 <div class="stat-change ${changeClass}">
-                    ${changeIcon} ${Math.abs(data.change)}% from last period
+                    ${changeIcon} ${Math.abs(changeVal)}% from last period
                 </div>
             ` : ''}
         `;
