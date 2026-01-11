@@ -3,13 +3,13 @@
  * Dashboard / Home Page
  */
 
-require_once __DIR__ . '/includes/bootstrap.php';
-
-// Check installation
+// Check installation FIRST before loading bootstrap
 if (!file_exists(__DIR__ . '/.installed')) {
     header('Location: install/');
     exit;
 }
+
+require_once __DIR__ . '/includes/bootstrap.php';
 
 // Require authentication
 Auth::requireAuth();
