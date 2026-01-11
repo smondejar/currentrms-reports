@@ -330,7 +330,13 @@ const ReportBuilder = {
         container.innerHTML = '<div class="spinner"></div>';
 
         try {
-            const data = await App.api(`modules/${module}/columns`);
+            const response = await fetch(`api/modules.php?module=${module}&action=columns`);
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
             container.innerHTML = data.columns.map(col => `
                 <label class="checkbox-item">
                     <input type="checkbox" class="column-checkbox" value="${col.key}" checked>
@@ -340,7 +346,7 @@ const ReportBuilder = {
 
             this.selectedColumns = data.columns.map(c => c.key);
         } catch (error) {
-            container.innerHTML = '<p class="text-danger">Failed to load columns</p>';
+            container.innerHTML = '<p class="text-danger">Failed to load columns: ' + error.message + '</p>';
         }
     },
 
@@ -400,8 +406,11 @@ const ReportBuilder = {
         previewContainer.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
         try {
-            const data = await App.api('reports/preview', {
+            const response = await fetch('api/reports/preview.php', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     module: this.currentModule,
                     columns: this.selectedColumns,
@@ -409,9 +418,15 @@ const ReportBuilder = {
                 }),
             });
 
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
             this.renderPreview(data, previewContainer);
         } catch (error) {
-            previewContainer.innerHTML = '<p class="text-danger">Failed to load preview</p>';
+            previewContainer.innerHTML = '<p class="text-danger">Failed to load preview: ' + error.message + '</p>';
         }
     },
 
