@@ -120,7 +120,7 @@ const App = {
     initTabs() {
         document.querySelectorAll('.tabs').forEach(tabGroup => {
             const tabs = tabGroup.querySelectorAll('.tab');
-            const panes = document.querySelectorAll(`[data-tab-group="${tabGroup.dataset.tabGroup}"]`);
+            const panes = document.querySelectorAll(`[data-tab-group="${tabGroup.dataset.tabGroup}"]:not(.tabs)`);
 
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
