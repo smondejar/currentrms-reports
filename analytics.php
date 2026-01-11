@@ -10,6 +10,7 @@ Auth::requirePermission(Permissions::VIEW_ANALYTICS);
 
 $pageTitle = 'Analytics';
 $api = getApiClient();
+$currencySymbol = config('app.currency_symbol') ?? '£';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -53,7 +54,7 @@ $api = getApiClient();
                         </select>
                     </div>
                     <div class="filter-group">
-                        <button class="btn btn-secondary btn-sm" onclick="refreshAnalytics()">
+                        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M23 4v6h-6M1 20v-6h6"/>
                                 <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
@@ -73,10 +74,10 @@ $api = getApiClient();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">Total Revenue</div>
-                            <div class="stat-value" id="kpi-revenue">$0</div>
-                            <div class="stat-change up" id="kpi-revenue-change">
-                                ↑ 0% from last period
+                            <div class="stat-value" id="kpi-revenue">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
+                            <div class="stat-change" id="kpi-revenue-change"></div>
                         </div>
                     </div>
 
@@ -88,11 +89,11 @@ $api = getApiClient();
                             </svg>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-label">Opportunities Won</div>
-                            <div class="stat-value" id="kpi-opportunities">0</div>
-                            <div class="stat-change up" id="kpi-opp-change">
-                                ↑ 0% from last period
+                            <div class="stat-label">Active Opportunities</div>
+                            <div class="stat-value" id="kpi-opportunities">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
+                            <div class="stat-change" id="kpi-opp-change"></div>
                         </div>
                     </div>
 
@@ -106,10 +107,10 @@ $api = getApiClient();
                         </div>
                         <div class="stat-content">
                             <div class="stat-label">New Customers</div>
-                            <div class="stat-value" id="kpi-customers">0</div>
-                            <div class="stat-change up" id="kpi-cust-change">
-                                ↑ 0% from last period
+                            <div class="stat-value" id="kpi-customers">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
+                            <div class="stat-change" id="kpi-cust-change"></div>
                         </div>
                     </div>
 
@@ -120,11 +121,11 @@ $api = getApiClient();
                             </svg>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-label">Products Utilized</div>
-                            <div class="stat-value" id="kpi-products">0%</div>
-                            <div class="stat-change up" id="kpi-prod-change">
-                                ↑ 0% from last period
+                            <div class="stat-label">Product Utilisation</div>
+                            <div class="stat-value" id="kpi-utilisation">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
+                            <div class="stat-change" id="kpi-util-change"></div>
                         </div>
                     </div>
                 </div>
@@ -185,25 +186,9 @@ $api = getApiClient();
                     </div>
                     <div class="card-body">
                         <div class="timeline" id="activity-timeline">
-                            <div class="timeline-item">
-                                <div class="timeline-date">Today</div>
-                                <div class="timeline-title">Invoice #1234 - Paid</div>
-                                <div class="timeline-desc">ABC Corporation - $2,500.00</div>
-                            </div>
-                            <div class="timeline-item">
-                                <div class="timeline-date">Yesterday</div>
-                                <div class="timeline-title">New Opportunity Created</div>
-                                <div class="timeline-desc">Wedding Event - Grand Hotel</div>
-                            </div>
-                            <div class="timeline-item">
-                                <div class="timeline-date">Jan 8</div>
-                                <div class="timeline-title">Equipment Returned</div>
-                                <div class="timeline-desc">Conference Setup - Tech Summit</div>
-                            </div>
-                            <div class="timeline-item">
-                                <div class="timeline-date">Jan 7</div>
-                                <div class="timeline-title">New Customer Added</div>
-                                <div class="timeline-desc">XYZ Events Ltd</div>
+                            <div class="text-center text-muted">
+                                <div class="spinner"></div>
+                                <p>Loading activity...</p>
                             </div>
                         </div>
                     </div>
@@ -213,99 +198,226 @@ $api = getApiClient();
         </div>
     </div>
 
+    <script>
+        // Set currency symbol from config
+        window.APP_CURRENCY = '<?php echo e($currencySymbol); ?>';
+    </script>
     <script src="assets/js/app.js"></script>
     <script>
+        const currencySymbol = window.APP_CURRENCY || '£';
+        let charts = {};
+
         document.addEventListener('DOMContentLoaded', function() {
-            initCharts();
+            loadAnalytics();
+
+            // Reload when date range changes
+            document.getElementById('date-range')?.addEventListener('change', loadAnalytics);
         });
 
-        function initCharts() {
-            // Revenue Trend
-            new Chart(document.getElementById('chart-revenue-trend'), {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [{
-                        label: 'Revenue',
-                        data: [15000, 18000, 22000, 19000, 25000, 28000, 32000, 30000, 35000, 38000, 42000, 45000],
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
-                }
-            });
+        async function loadAnalytics() {
+            const days = document.getElementById('date-range')?.value || 30;
 
-            // Opportunities by Status
-            new Chart(document.getElementById('chart-opp-status'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Confirmed', 'Provisional', 'Quote Sent', 'Draft', 'Closed'],
-                    datasets: [{
-                        data: [45, 20, 15, 10, 10],
-                        backgroundColor: ['#10b981', '#667eea', '#f59e0b', '#9ca3af', '#3b82f6']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
+            try {
+                const response = await fetch(`api/analytics.php?days=${days}`);
+                const data = await response.json();
 
-            // Top Products
-            new Chart(document.getElementById('chart-top-products'), {
-                type: 'bar',
-                data: {
-                    labels: ['PA System', 'Stage Lights', 'Projector', 'Microphones', 'Speakers'],
-                    datasets: [{
-                        label: 'Revenue',
-                        data: [12000, 9500, 8200, 7500, 6800],
-                        backgroundColor: ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    plugins: { legend: { display: false } }
+                if (data.error) {
+                    App.showNotification(data.error, 'error');
+                    return;
                 }
-            });
 
-            // Customer Segments
-            new Chart(document.getElementById('chart-customers'), {
-                type: 'pie',
-                data: {
-                    labels: ['Corporate', 'Weddings', 'Concerts', 'Conferences', 'Other'],
-                    datasets: [{
-                        data: [35, 25, 20, 15, 5],
-                        backgroundColor: ['#667eea', '#10b981', '#f59e0b', '#ef4444', '#9ca3af']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
-            });
+                updateKPIs(data.kpis);
+                updateCharts(data.charts);
+                updateTimeline(data.timeline);
 
-            // Update KPIs
-            document.getElementById('kpi-revenue').textContent = '$349,000';
-            document.getElementById('kpi-opportunities').textContent = '127';
-            document.getElementById('kpi-customers').textContent = '43';
-            document.getElementById('kpi-products').textContent = '78%';
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                App.showNotification('Failed to load analytics data', 'error');
+            }
         }
 
-        function refreshAnalytics() {
-            App.showNotification('Analytics refreshed', 'success');
+        function updateKPIs(kpis) {
+            // Revenue
+            if (kpis.revenue) {
+                document.getElementById('kpi-revenue').textContent = currencySymbol + parseFloat(kpis.revenue.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                updateChange('kpi-revenue-change', kpis.revenue.change);
+            }
+
+            // Opportunities
+            if (kpis.opportunities) {
+                document.getElementById('kpi-opportunities').textContent = parseInt(kpis.opportunities.value || 0).toLocaleString();
+                updateChange('kpi-opp-change', kpis.opportunities.change);
+            }
+
+            // Customers
+            if (kpis.customers) {
+                document.getElementById('kpi-customers').textContent = parseInt(kpis.customers.value || 0).toLocaleString();
+                updateChange('kpi-cust-change', kpis.customers.change);
+            }
+
+            // Utilisation
+            if (kpis.utilisation) {
+                document.getElementById('kpi-utilisation').textContent = parseFloat(kpis.utilisation.value || 0).toFixed(1) + '%';
+                updateChange('kpi-util-change', kpis.utilisation.change);
+            }
+        }
+
+        function updateChange(elementId, change) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            const changeVal = parseFloat(change) || 0;
+            const isUp = changeVal >= 0;
+            el.className = 'stat-change ' + (isUp ? 'up' : 'down');
+            el.textContent = (isUp ? '↑' : '↓') + ' ' + Math.abs(changeVal) + '% from last period';
+        }
+
+        function updateCharts(chartsData) {
+            // Destroy existing charts
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+
+            // Revenue Trend
+            if (chartsData.revenue_trend) {
+                const ctx = document.getElementById('chart-revenue-trend');
+                if (ctx) {
+                    charts.revenue = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: chartsData.revenue_trend.labels,
+                            datasets: [{
+                                label: 'Revenue',
+                                data: chartsData.revenue_trend.values,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return currencySymbol + value.toLocaleString();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Opportunities by Status
+            if (chartsData.opp_status && chartsData.opp_status.labels.length > 0) {
+                const ctx = document.getElementById('chart-opp-status');
+                if (ctx) {
+                    charts.oppStatus = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: chartsData.opp_status.labels,
+                            datasets: [{
+                                data: chartsData.opp_status.values,
+                                backgroundColor: ['#10b981', '#667eea', '#f59e0b', '#9ca3af', '#3b82f6', '#ef4444', '#8b5cf6']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } }
+                        }
+                    });
+                }
+            }
+
+            // Top Products
+            if (chartsData.top_products && chartsData.top_products.labels.length > 0) {
+                const ctx = document.getElementById('chart-top-products');
+                if (ctx) {
+                    charts.topProducts = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartsData.top_products.labels.slice(0, 10),
+                            datasets: [{
+                                label: 'Revenue',
+                                data: chartsData.top_products.values.slice(0, 10),
+                                backgroundColor: ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: {
+                                    ticks: {
+                                        callback: function(value) {
+                                            return currencySymbol + value.toLocaleString();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Customer Segments
+            if (chartsData.customer_segments && chartsData.customer_segments.labels.length > 0) {
+                const ctx = document.getElementById('chart-customers');
+                if (ctx) {
+                    charts.customers = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: chartsData.customer_segments.labels,
+                            datasets: [{
+                                data: chartsData.customer_segments.values,
+                                backgroundColor: ['#667eea', '#10b981', '#f59e0b', '#ef4444', '#9ca3af', '#8b5cf6', '#3b82f6']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } }
+                        }
+                    });
+                }
+            }
+        }
+
+        function updateTimeline(timeline) {
+            const container = document.getElementById('activity-timeline');
+            if (!container) return;
+
+            if (!timeline || timeline.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No recent activity</p>';
+                return;
+            }
+
+            container.innerHTML = timeline.map(item => {
+                const date = new Date(item.date);
+                const formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+                return `
+                    <div class="timeline-item">
+                        <div class="timeline-date">${formattedDate}</div>
+                        <div class="timeline-title">${escapeHtml(item.title)}</div>
+                        <div class="timeline-desc">${escapeHtml(item.description)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
