@@ -8,28 +8,39 @@ class Database
 {
     private static ?PDO $instance = null;
     private static array $config = [];
+    private static bool $initialized = false;
 
     public static function init(array $config): void
     {
         self::$config = $config;
+        self::$initialized = true;
+    }
+
+    public static function isInitialized(): bool
+    {
+        return self::$initialized && !empty(self::$config['username']);
     }
 
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
+            if (!self::$initialized) {
+                throw new RuntimeException('Database not initialized. Please run the installer.');
+            }
+
             $dsn = sprintf(
                 '%s:host=%s;port=%s;dbname=%s;charset=%s',
-                self::$config['driver'],
-                self::$config['host'],
-                self::$config['port'],
-                self::$config['database'],
-                self::$config['charset']
+                self::$config['driver'] ?? 'mysql',
+                self::$config['host'] ?? 'localhost',
+                self::$config['port'] ?? '3306',
+                self::$config['database'] ?? '',
+                self::$config['charset'] ?? 'utf8mb4'
             );
 
             self::$instance = new PDO(
                 $dsn,
-                self::$config['username'],
-                self::$config['password'],
+                self::$config['username'] ?? '',
+                self::$config['password'] ?? '',
                 [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -61,7 +72,7 @@ class Database
 
     public static function insert(string $table, array $data): int
     {
-        $prefix = self::$config['prefix'];
+        $prefix = self::getPrefix();
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
 
@@ -73,7 +84,7 @@ class Database
 
     public static function update(string $table, array $data, string $where, array $whereParams = []): int
     {
-        $prefix = self::$config['prefix'];
+        $prefix = self::getPrefix();
         $set = implode(' = ?, ', array_keys($data)) . ' = ?';
 
         $sql = "UPDATE {$prefix}{$table} SET {$set} WHERE {$where}";
@@ -84,7 +95,7 @@ class Database
 
     public static function delete(string $table, string $where, array $params = []): int
     {
-        $prefix = self::$config['prefix'];
+        $prefix = self::getPrefix();
         $sql = "DELETE FROM {$prefix}{$table} WHERE {$where}";
         $stmt = self::query($sql, $params);
 
@@ -93,6 +104,6 @@ class Database
 
     public static function getPrefix(): string
     {
-        return self::$config['prefix'];
+        return self::$config['prefix'] ?? 'crms_';
     }
 }

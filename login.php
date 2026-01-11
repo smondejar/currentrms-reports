@@ -3,12 +3,17 @@
  * Login Page
  */
 
-require_once __DIR__ . '/includes/bootstrap.php';
-
-// Check if already installed
+// Check if already installed FIRST
 if (!file_exists(__DIR__ . '/.installed')) {
     header('Location: install/');
     exit;
+}
+
+require_once __DIR__ . '/includes/bootstrap.php';
+
+// Check if database is properly configured
+if (!Database::isInitialized()) {
+    die('<h1>Database Not Configured</h1><p>Please <a href="install/">run the installer</a> to configure the database.</p>');
 }
 
 // Redirect if already logged in
