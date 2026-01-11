@@ -1,0 +1,22 @@
+on: [push]
+
+jobs:
+  sftp_transfer_job:
+    runs-on: ubuntu-latest
+    name: SFTP Transfer Test
+    steps:
+    - uses: actions/checkout@v2
+   
+    - name: Connect
+      id: connect
+      uses: danhendrickson/sftp-transfer-action@v1.23
+      with:
+        server: access867548530.webspace-data.io
+        user: u104413489
+        pass: Liverpool&007
+        port: 22
+        local-path: './'
+        remote-path: './currentrms-reports'
+
+    - name: Transfer Status
+      run: echo "Transfer Status - ${{ steps.connect.outputs.transferStatus }}"
