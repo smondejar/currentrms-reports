@@ -141,27 +141,27 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                             <div class="widget-panel-section">
                                 <h4>KPI Cards</h4>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-revenue" checked onchange="toggleWidget('revenue')">
-                                    <label for="widget-revenue">Total Revenue</label>
+                                    <input type="checkbox" id="widget-total_charges" checked onchange="toggleWidget('total_charges')">
+                                    <label for="widget-total_charges">Total Charges</label>
+                                </div>
+                                <div class="widget-option">
+                                    <input type="checkbox" id="widget-rental_charges" checked onchange="toggleWidget('rental_charges')">
+                                    <label for="widget-rental_charges">Rental Charges</label>
+                                </div>
+                                <div class="widget-option">
+                                    <input type="checkbox" id="widget-service_charges" checked onchange="toggleWidget('service_charges')">
+                                    <label for="widget-service_charges">Service Charges</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-opportunities" checked onchange="toggleWidget('opportunities')">
                                     <label for="widget-opportunities">Active Opportunities</label>
                                 </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-projects" checked onchange="toggleWidget('projects')">
-                                    <label for="widget-projects">Active Projects</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-utilisation" checked onchange="toggleWidget('utilisation')">
-                                    <label for="widget-utilisation">Product Utilisation</label>
-                                </div>
                             </div>
                             <div class="widget-panel-section">
                                 <h4>Charts</h4>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-revenue_trend" checked onchange="toggleWidget('revenue_trend')">
-                                    <label for="widget-revenue_trend">Revenue Trend</label>
+                                    <input type="checkbox" id="widget-charges_trend" checked onchange="toggleWidget('charges_trend')">
+                                    <label for="widget-charges_trend">Charges Trend</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-opp_status" checked onchange="toggleWidget('opp_status')">
@@ -169,7 +169,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-top_products" checked onchange="toggleWidget('top_products')">
-                                    <label for="widget-top_products">Top Products by Revenue</label>
+                                    <label for="widget-top_products">Top Products by Charges</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-customer_segments" checked onchange="toggleWidget('customer_segments')">
@@ -180,8 +180,8 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                     <label for="widget-projects_by_category">Projects by Category</label>
                                 </div>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-revenue_by_category" checked onchange="toggleWidget('revenue_by_category')">
-                                    <label for="widget-revenue_by_category">Revenue by Category</label>
+                                    <input type="checkbox" id="widget-charges_by_category" checked onchange="toggleWidget('charges_by_category')">
+                                    <label for="widget-charges_by_category">Charges by Category</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-opportunity_types" checked onchange="toggleWidget('opportunity_types')">
@@ -194,23 +194,54 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
 
                 <!-- KPI Cards -->
                 <div class="stat-cards" id="kpi-cards">
-                    <div class="stat-card" data-widget="revenue">
+                    <div class="stat-card" data-widget="total_charges">
                         <div class="stat-icon primary">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                             </svg>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-label">Total Revenue</div>
-                            <div class="stat-value" id="kpi-revenue">
+                            <div class="stat-label">Total Charges</div>
+                            <div class="stat-value" id="kpi-total-charges">
                                 <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
-                            <div class="stat-change" id="kpi-revenue-change"></div>
+                            <div class="stat-change" id="kpi-total-charges-change"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" data-widget="rental_charges">
+                        <div class="stat-icon success">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                                <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Rental Charges</div>
+                            <div class="stat-value" id="kpi-rental-charges">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
+                            </div>
+                            <div class="stat-change" id="kpi-rental-charges-change"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" data-widget="service_charges">
+                        <div class="stat-icon warning">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Service Charges</div>
+                            <div class="stat-value" id="kpi-service-charges">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
+                            </div>
+                            <div class="stat-change" id="kpi-service-charges-change"></div>
                         </div>
                     </div>
 
                     <div class="stat-card" data-widget="opportunities">
-                        <div class="stat-icon success">
+                        <div class="stat-icon info">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"/>
                                 <path d="M12 6v6l4 2"/>
@@ -224,47 +255,17 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                             <div class="stat-change" id="kpi-opp-change"></div>
                         </div>
                     </div>
-
-                    <div class="stat-card" data-widget="projects">
-                        <div class="stat-icon warning">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Active Projects</div>
-                            <div class="stat-value" id="kpi-projects">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-proj-change"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card" data-widget="utilisation">
-                        <div class="stat-icon info">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Product Utilisation</div>
-                            <div class="stat-value" id="kpi-utilisation">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-util-change"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Charts Row 1 -->
                 <div class="chart-row">
-                    <div class="card" data-widget="revenue_trend">
+                    <div class="card" data-widget="charges_trend">
                         <div class="card-header">
-                            <h3 class="card-title">Revenue Trend</h3>
+                            <h3 class="card-title">Charges Trend</h3>
                         </div>
                         <div class="card-body">
                             <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-revenue-trend"></canvas>
+                                <canvas id="chart-charges-trend"></canvas>
                             </div>
                         </div>
                     </div>
@@ -319,13 +320,13 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                         </div>
                     </div>
 
-                    <div class="card" data-widget="revenue_by_category">
+                    <div class="card" data-widget="charges_by_category">
                         <div class="card-header">
-                            <h3 class="card-title">Revenue by Project Category</h3>
+                            <h3 class="card-title">Charges by Project Category</h3>
                         </div>
                         <div class="card-body">
                             <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-category-revenue"></canvas>
+                                <canvas id="chart-category-charges"></canvas>
                             </div>
                         </div>
                     </div>
@@ -491,28 +492,28 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
         }
 
         function updateKPIs(kpis) {
-            // Revenue
-            if (kpis.revenue) {
-                document.getElementById('kpi-revenue').textContent = currencySymbol + parseFloat(kpis.revenue.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                updateChange('kpi-revenue-change', kpis.revenue.change);
+            // Total Charges
+            if (kpis.total_charges) {
+                document.getElementById('kpi-total-charges').textContent = currencySymbol + parseFloat(kpis.total_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                updateChange('kpi-total-charges-change', kpis.total_charges.change);
+            }
+
+            // Rental Charges
+            if (kpis.rental_charges) {
+                document.getElementById('kpi-rental-charges').textContent = currencySymbol + parseFloat(kpis.rental_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                updateChange('kpi-rental-charges-change', kpis.rental_charges.change);
+            }
+
+            // Service Charges
+            if (kpis.service_charges) {
+                document.getElementById('kpi-service-charges').textContent = currencySymbol + parseFloat(kpis.service_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                updateChange('kpi-service-charges-change', kpis.service_charges.change);
             }
 
             // Opportunities
             if (kpis.opportunities) {
                 document.getElementById('kpi-opportunities').textContent = parseInt(kpis.opportunities.value || 0).toLocaleString();
                 updateChange('kpi-opp-change', kpis.opportunities.change);
-            }
-
-            // Projects
-            if (kpis.projects) {
-                document.getElementById('kpi-projects').textContent = parseInt(kpis.projects.value || 0).toLocaleString();
-                updateChange('kpi-proj-change', kpis.projects.change);
-            }
-
-            // Utilisation
-            if (kpis.utilisation) {
-                document.getElementById('kpi-utilisation').textContent = parseFloat(kpis.utilisation.value || 0).toFixed(1) + '%';
-                updateChange('kpi-util-change', kpis.utilisation.change);
             }
         }
 
@@ -533,17 +534,17 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
 
             const chartColors = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
-            // Revenue Trend
-            if (chartsData.revenue_trend) {
-                const ctx = document.getElementById('chart-revenue-trend');
+            // Charges Trend
+            if (chartsData.charges_trend) {
+                const ctx = document.getElementById('chart-charges-trend');
                 if (ctx) {
-                    charts.revenue = new Chart(ctx, {
+                    charts.charges = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: chartsData.revenue_trend.labels,
+                            labels: chartsData.charges_trend.labels,
                             datasets: [{
-                                label: 'Revenue',
-                                data: chartsData.revenue_trend.values,
+                                label: 'Charges',
+                                data: chartsData.charges_trend.values,
                                 borderColor: '#667eea',
                                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                                 fill: true,
@@ -679,17 +680,17 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 }
             }
 
-            // Revenue by Category (uses revenue_by_category from API)
-            if (chartsData.revenue_by_category && chartsData.revenue_by_category.labels.length > 0) {
-                const ctx = document.getElementById('chart-category-revenue');
+            // Charges by Category (uses charges_by_category from API)
+            if (chartsData.charges_by_category && chartsData.charges_by_category.labels.length > 0) {
+                const ctx = document.getElementById('chart-category-charges');
                 if (ctx) {
-                    charts.categoryRevenue = new Chart(ctx, {
+                    charts.categoryCharges = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: chartsData.revenue_by_category.labels,
+                            labels: chartsData.charges_by_category.labels,
                             datasets: [{
-                                label: 'Revenue',
-                                data: chartsData.revenue_by_category.values,
+                                label: 'Charges',
+                                data: chartsData.charges_by_category.values,
                                 backgroundColor: chartColors
                             }]
                         },
@@ -710,9 +711,9 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     });
                 }
             } else {
-                const ctx = document.getElementById('chart-category-revenue');
+                const ctx = document.getElementById('chart-category-charges');
                 if (ctx) {
-                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No category revenue data available</p>';
+                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No category charges data available</p>';
                 }
             }
 

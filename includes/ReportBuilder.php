@@ -92,7 +92,9 @@ class ReportBuilder
                     'state' => ['label' => 'State', 'type' => 'string'],
                     'starts_at' => ['label' => 'Starts', 'type' => 'datetime'],
                     'ends_at' => ['label' => 'Ends', 'type' => 'datetime'],
-                    'charge_total' => ['label' => 'Charge Total', 'type' => 'currency'],
+                    'rental_charge_total' => ['label' => 'Rental Charges', 'type' => 'currency'],
+                    'service_charge_total' => ['label' => 'Service Charges', 'type' => 'currency'],
+                    'charge_total' => ['label' => 'Total Charges', 'type' => 'currency'],
                     'tax_total' => ['label' => 'Tax Total', 'type' => 'currency'],
                     'grand_total' => ['label' => 'Grand Total', 'type' => 'currency'],
                     'venue_name' => ['label' => 'Venue', 'type' => 'string'],
@@ -148,7 +150,9 @@ class ReportBuilder
                     'starts_at' => ['label' => 'Start Date', 'type' => 'datetime'],
                     'ends_at' => ['label' => 'End Date', 'type' => 'datetime'],
                     'budget' => ['label' => 'Budget', 'type' => 'currency'],
-                    'revenue' => ['label' => 'Revenue (from Opportunities)', 'type' => 'currency'],
+                    'total_charges' => ['label' => 'Total Charges', 'type' => 'currency'],
+                    'rental_charges' => ['label' => 'Rental Charges', 'type' => 'currency'],
+                    'service_charges' => ['label' => 'Service Charges', 'type' => 'currency'],
                     'opportunities_count' => ['label' => 'Opportunities', 'type' => 'number'],
                     'created_at' => ['label' => 'Created', 'type' => 'datetime'],
                 ],
@@ -489,22 +493,17 @@ class ReportBuilder
             }
         }
 
-        // Special handling for projects: calculate revenue from opportunities
+        // Special handling for projects: calculate charges from opportunities
         if ($module === 'projects' && isset($row['opportunities']) && is_array($row['opportunities'])) {
-            $totalRevenue = 0;
+            $rentalCharges = 0;
+            $serviceCharges = 0;
             foreach ($row['opportunities'] as $opp) {
-                // Try rental_charge_total first (primary revenue field), then other total fields
-                $oppRevenue = floatval(
-                    $opp['rental_charge_total'] ??
-                    $opp['charge_total'] ??
-                    $opp['sale_charge_total'] ??
-                    $opp['service_charge_total'] ??
-                    $opp['total'] ??
-                    0
-                );
-                $totalRevenue += $oppRevenue;
+                $rentalCharges += floatval($opp['rental_charge_total'] ?? 0);
+                $serviceCharges += floatval($opp['service_charge_total'] ?? 0);
             }
-            $flattened['revenue'] = $totalRevenue;
+            $flattened['rental_charges'] = $rentalCharges;
+            $flattened['service_charges'] = $serviceCharges;
+            $flattened['total_charges'] = $rentalCharges + $serviceCharges;
             $flattened['opportunities_count'] = count($row['opportunities']);
         }
 

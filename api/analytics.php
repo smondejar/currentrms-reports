@@ -95,18 +95,20 @@ $previousEndDate = date('Y-m-d', strtotime("-{$days} days"));
 // Initialize analytics data
 $analytics = [
     'kpis' => [
-        'revenue' => ['value' => 0, 'change' => 0, 'label' => 'Total Revenue'],
+        'total_charges' => ['value' => 0, 'change' => 0, 'label' => 'Total Charges'],
+        'rental_charges' => ['value' => 0, 'change' => 0, 'label' => 'Rental Charges'],
+        'service_charges' => ['value' => 0, 'change' => 0, 'label' => 'Service Charges'],
         'opportunities' => ['value' => 0, 'change' => 0, 'label' => 'Active Opportunities'],
         'projects' => ['value' => 0, 'change' => 0, 'label' => 'Active Projects'],
         'utilisation' => ['value' => 0, 'change' => 0, 'label' => 'Product Utilisation', 'format' => 'percent'],
     ],
     'charts' => [
-        'revenue_trend' => ['labels' => [], 'values' => []],
+        'charges_trend' => ['labels' => [], 'values' => []],
         'opp_status' => ['labels' => [], 'values' => []],
         'top_products' => ['labels' => [], 'values' => []],
         'customer_segments' => ['labels' => [], 'values' => []],
         'projects_by_category' => ['labels' => [], 'values' => []],
-        'revenue_by_category' => ['labels' => [], 'values' => []],
+        'charges_by_category' => ['labels' => [], 'values' => []],
     ],
     'timeline' => [],
     'debug' => [],
@@ -142,7 +144,8 @@ if (!$oppsForRevenue || empty($oppsForRevenue['opportunities'])) {
 }
 
 if ($oppsForRevenue) {
-    $totalRevenue = 0;
+    $totalRentalCharges = 0;
+    $totalServiceCharges = 0;
     $oppCount = count($oppsForRevenue['opportunities'] ?? []);
 
     // Debug: capture first opportunity structure
@@ -153,7 +156,6 @@ if ($oppsForRevenue) {
             if (!is_array($value) && (
                 stripos($key, 'total') !== false ||
                 stripos($key, 'charge') !== false ||
-                stripos($key, 'revenue') !== false ||
                 stripos($key, 'amount') !== false
             )) {
                 $moneyFields[$key] = $value;
@@ -164,13 +166,19 @@ if ($oppsForRevenue) {
     }
 
     foreach ($oppsForRevenue['opportunities'] ?? [] as $opp) {
-        $total = getFieldValue($opp, $oppTotalPaths, 0);
-        $totalRevenue += floatval($total);
+        $totalRentalCharges += floatval($opp['rental_charge_total'] ?? 0);
+        $totalServiceCharges += floatval($opp['service_charge_total'] ?? 0);
     }
 
+    $totalCharges = $totalRentalCharges + $totalServiceCharges;
+
     $analytics['debug']['opp_count'] = $oppCount;
-    $analytics['debug']['revenue_calculated'] = $totalRevenue;
-    $analytics['kpis']['revenue']['value'] = $totalRevenue;
+    $analytics['debug']['rental_charges'] = $totalRentalCharges;
+    $analytics['debug']['service_charges'] = $totalServiceCharges;
+    $analytics['debug']['total_charges'] = $totalCharges;
+    $analytics['kpis']['rental_charges']['value'] = $totalRentalCharges;
+    $analytics['kpis']['service_charges']['value'] = $totalServiceCharges;
+    $analytics['kpis']['total_charges']['value'] = $totalCharges;
     $analytics['kpis']['opportunities']['value'] = $oppCount;
 
     // Previous period for comparison
@@ -181,13 +189,22 @@ if ($oppsForRevenue) {
     ]);
 
     if ($prevOpps) {
-        $prevRevenue = 0;
+        $prevRentalCharges = 0;
+        $prevServiceCharges = 0;
         foreach ($prevOpps['opportunities'] ?? [] as $opp) {
-            $prevRevenue += floatval(getFieldValue($opp, $oppTotalPaths, 0));
+            $prevRentalCharges += floatval($opp['rental_charge_total'] ?? 0);
+            $prevServiceCharges += floatval($opp['service_charge_total'] ?? 0);
         }
+        $prevTotalCharges = $prevRentalCharges + $prevServiceCharges;
 
-        if ($prevRevenue > 0) {
-            $analytics['kpis']['revenue']['change'] = round((($totalRevenue - $prevRevenue) / $prevRevenue) * 100, 1);
+        if ($prevTotalCharges > 0) {
+            $analytics['kpis']['total_charges']['change'] = round((($totalCharges - $prevTotalCharges) / $prevTotalCharges) * 100, 1);
+        }
+        if ($prevRentalCharges > 0) {
+            $analytics['kpis']['rental_charges']['change'] = round((($totalRentalCharges - $prevRentalCharges) / $prevRentalCharges) * 100, 1);
+        }
+        if ($prevServiceCharges > 0) {
+            $analytics['kpis']['service_charges']['change'] = round((($totalServiceCharges - $prevServiceCharges) / $prevServiceCharges) * 100, 1);
         }
 
         $prevCount = count($prevOpps['opportunities'] ?? []);
@@ -247,26 +264,26 @@ if ($stockResponse) {
 }
 
 // =====================
-// Chart: Revenue Trend
+// Chart: Charges Trend
 // =====================
 if ($oppsForRevenue) {
-    $revenueByPeriod = [];
+    $chargesByPeriod = [];
     foreach ($oppsForRevenue['opportunities'] ?? [] as $opp) {
         $date = $opp['starts_at'] ?? $opp['created_at'] ?? null;
         if ($date) {
             $period = ($days <= 30) ? date('M d', strtotime($date)) : date('M Y', strtotime($date));
-            $total = getFieldValue($opp, $oppTotalPaths, 0);
-            $revenueByPeriod[$period] = ($revenueByPeriod[$period] ?? 0) + floatval($total);
+            $charges = floatval($opp['rental_charge_total'] ?? 0) + floatval($opp['service_charge_total'] ?? 0);
+            $chargesByPeriod[$period] = ($chargesByPeriod[$period] ?? 0) + $charges;
         }
     }
 
-    uksort($revenueByPeriod, function($a, $b) {
+    uksort($chargesByPeriod, function($a, $b) {
         return strtotime($a) - strtotime($b);
     });
 
-    $analytics['charts']['revenue_trend'] = [
-        'labels' => array_keys($revenueByPeriod),
-        'values' => array_values($revenueByPeriod),
+    $analytics['charts']['charges_trend'] = [
+        'labels' => array_keys($chargesByPeriod),
+        'values' => array_values($chargesByPeriod),
     ];
 }
 
@@ -287,18 +304,18 @@ if ($oppsForRevenue) {
 }
 
 // =====================
-// Chart: Customer Segments
+// Chart: Customer Segments (by Total Charges)
 // =====================
 if ($oppsForRevenue) {
-    $customerRevenue = [];
+    $customerCharges = [];
     foreach ($oppsForRevenue['opportunities'] ?? [] as $opp) {
         $name = $opp['member']['name'] ?? $opp['billing_address']['name'] ?? $opp['subject'] ?? 'Unknown';
-        $total = getFieldValue($opp, $oppTotalPaths, 0);
-        $customerRevenue[$name] = ($customerRevenue[$name] ?? 0) + floatval($total);
+        $charges = floatval($opp['rental_charge_total'] ?? 0) + floatval($opp['service_charge_total'] ?? 0);
+        $customerCharges[$name] = ($customerCharges[$name] ?? 0) + $charges;
     }
 
-    arsort($customerRevenue);
-    $topCustomers = array_slice($customerRevenue, 0, 8, true);
+    arsort($customerCharges);
+    $topCustomers = array_slice($customerCharges, 0, 8, true);
 
     $analytics['charts']['customer_segments'] = [
         'labels' => array_keys($topCustomers),
@@ -307,15 +324,14 @@ if ($oppsForRevenue) {
 }
 
 // =====================
-// Chart: Top Products by Revenue
+// Chart: Top Products by Charges
 // =====================
-// Try to get opportunity_items - first with date filter, then without
 $opportunityItems = safeApiCall($api, 'opportunity_items', [
     'per_page' => 200,
 ]);
 
 if ($opportunityItems) {
-    $productRevenue = [];
+    $productCharges = [];
     $analytics['debug']['opportunity_items_count'] = count($opportunityItems['opportunity_items'] ?? []);
 
     // Debug first item structure
@@ -328,36 +344,35 @@ if ($opportunityItems) {
 
     foreach ($opportunityItems['opportunity_items'] ?? [] as $item) {
         $productName = $item['product']['name'] ?? $item['name'] ?? $item['item_name'] ?? 'Unknown Product';
-        // Try multiple field names for the total
-        $itemTotal = floatval(
+        // Get charge total for this item
+        $itemCharges = floatval(
+            $item['rental_charge_total'] ??
             $item['charge_total'] ??
             $item['total'] ??
             $item['price_total'] ??
-            $item['row_total'] ??
-            $item['subtotal'] ??
             ($item['quantity'] ?? 0) * ($item['price'] ?? 0)
         );
         if ($productName !== 'Unknown Product') {
-            $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $itemTotal;
+            $productCharges[$productName] = ($productCharges[$productName] ?? 0) + $itemCharges;
         }
     }
 
-    arsort($productRevenue);
-    $topProducts = array_slice($productRevenue, 0, 10, true);
+    arsort($productCharges);
+    $topProducts = array_slice($productCharges, 0, 10, true);
 
     $analytics['charts']['top_products'] = [
         'labels' => array_keys($topProducts),
         'values' => array_values($topProducts),
     ];
-    $analytics['debug']['top_products_count'] = count($productRevenue);
+    $analytics['debug']['top_products_count'] = count($productCharges);
 }
 
 // =====================
-// Chart: Projects by Category & Revenue by Category
+// Chart: Projects by Category & Charges by Category
 // =====================
 if ($projectsResponse) {
     $categoryCount = [];
-    $categoryRevenue = [];
+    $categoryCharges = [];
     $projectOpportunityMap = [];
 
     // Build map of project_id -> opportunities from oppsForRevenue if projects don't have embedded opportunities
@@ -405,24 +420,24 @@ if ($projectsResponse) {
         // Count projects per category
         $categoryCount[$category] = ($categoryCount[$category] ?? 0) + 1;
 
-        // Calculate project revenue
-        $projectRev = 0;
+        // Calculate project charges
+        $projectCharges = 0;
 
         // First try embedded opportunities
         if (!empty($project['opportunities'])) {
             foreach ($project['opportunities'] as $opp) {
-                $projectRev += floatval($opp['rental_charge_total'] ?? $opp['charge_total'] ?? 0);
+                $projectCharges += floatval($opp['rental_charge_total'] ?? 0) + floatval($opp['service_charge_total'] ?? 0);
             }
         }
         // If no embedded opportunities, try from our map
         elseif ($projectId && isset($projectOpportunityMap[$projectId])) {
             foreach ($projectOpportunityMap[$projectId] as $opp) {
-                $projectRev += floatval($opp['rental_charge_total'] ?? $opp['charge_total'] ?? 0);
+                $projectCharges += floatval($opp['rental_charge_total'] ?? 0) + floatval($opp['service_charge_total'] ?? 0);
             }
         }
 
-        // Sum revenue per category
-        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $projectRev;
+        // Sum charges per category
+        $categoryCharges[$category] = ($categoryCharges[$category] ?? 0) + $projectCharges;
     }
 
     // Sort by count for projects by category
@@ -432,15 +447,15 @@ if ($projectsResponse) {
         'values' => array_values($categoryCount),
     ];
 
-    // Sort by revenue for revenue by category
-    arsort($categoryRevenue);
-    $analytics['charts']['revenue_by_category'] = [
-        'labels' => array_keys($categoryRevenue),
-        'values' => array_values($categoryRevenue),
+    // Sort by charges for charges by category
+    arsort($categoryCharges);
+    $analytics['charts']['charges_by_category'] = [
+        'labels' => array_keys($categoryCharges),
+        'values' => array_values($categoryCharges),
     ];
 
     $analytics['debug']['project_categories'] = $categoryCount;
-    $analytics['debug']['category_revenue'] = $categoryRevenue;
+    $analytics['debug']['category_charges'] = $categoryCharges;
 }
 
 // =====================
@@ -467,18 +482,20 @@ if ($oppsForRevenue) {
 // Available widgets
 $analytics['available_widgets'] = [
     'kpis' => [
-        ['id' => 'revenue', 'label' => 'Total Revenue', 'type' => 'stat'],
+        ['id' => 'total_charges', 'label' => 'Total Charges', 'type' => 'stat'],
+        ['id' => 'rental_charges', 'label' => 'Rental Charges', 'type' => 'stat'],
+        ['id' => 'service_charges', 'label' => 'Service Charges', 'type' => 'stat'],
         ['id' => 'opportunities', 'label' => 'Active Opportunities', 'type' => 'stat'],
         ['id' => 'projects', 'label' => 'Active Projects', 'type' => 'stat'],
         ['id' => 'utilisation', 'label' => 'Product Utilisation', 'type' => 'stat'],
     ],
     'charts' => [
-        ['id' => 'revenue_trend', 'label' => 'Revenue Trend', 'type' => 'line'],
+        ['id' => 'charges_trend', 'label' => 'Charges Trend', 'type' => 'line'],
         ['id' => 'opp_status', 'label' => 'Opportunities by Status', 'type' => 'doughnut'],
         ['id' => 'customer_segments', 'label' => 'Customer Segments', 'type' => 'pie'],
-        ['id' => 'top_products', 'label' => 'Top Products by Revenue', 'type' => 'bar'],
+        ['id' => 'top_products', 'label' => 'Top Products by Charges', 'type' => 'bar'],
         ['id' => 'projects_by_category', 'label' => 'Projects by Category', 'type' => 'doughnut'],
-        ['id' => 'revenue_by_category', 'label' => 'Revenue by Category', 'type' => 'bar'],
+        ['id' => 'charges_by_category', 'label' => 'Charges by Category', 'type' => 'bar'],
     ],
 ];
 
