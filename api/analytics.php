@@ -4,46 +4,50 @@
  * Fetches live analytics data from CurrentRMS
  */
 
-// Clean output buffer to ensure pure JSON response
-ob_start();
+// Wrap everything in try-catch to prevent 500 errors
+try {
+    // Clean output buffer to ensure pure JSON response
+    ob_start();
 
-require_once __DIR__ . '/../includes/bootstrap.php';
+    require_once __DIR__ . '/../includes/bootstrap.php';
 
-// Clear any output from bootstrap
-ob_end_clean();
-ob_start();
+    // Clear any output from bootstrap
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
 
-header('Content-Type: application/json');
+    header('Content-Type: application/json');
 
-// Increase error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
+    // Increase error reporting for debugging
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
 
-// Check authentication
-if (!Auth::check()) {
-    ob_end_clean();
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+    // Check authentication
+    if (!Auth::check()) {
+        if (ob_get_level() > 0) ob_end_clean();
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
 
-// Check permission
-if (!Auth::can(Permissions::VIEW_ANALYTICS)) {
-    ob_end_clean();
-    http_response_code(403);
-    echo json_encode(['error' => 'Permission denied']);
-    exit;
-}
+    // Check permission
+    if (!Auth::can(Permissions::VIEW_ANALYTICS)) {
+        if (ob_get_level() > 0) ob_end_clean();
+        http_response_code(403);
+        echo json_encode(['error' => 'Permission denied']);
+        exit;
+    }
 
-// Get API client
-$api = getApiClient();
-if (!$api) {
-    ob_end_clean();
-    http_response_code(500);
-    echo json_encode(['error' => 'API not configured']);
-    exit;
-}
+    // Get API client
+    $api = getApiClient();
+    if (!$api) {
+        if (ob_get_level() > 0) ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['error' => 'API not configured']);
+        exit;
+    }
 
 // Helper function to get value from multiple possible paths
 function getFieldValue($item, $paths, $default = 0) {
@@ -470,5 +474,24 @@ $analytics['available_widgets'] = [
 ];
 
 // Clear any error output and send clean JSON
-ob_end_clean();
+if (ob_get_level() > 0) ob_end_clean();
 echo json_encode($analytics, JSON_UNESCAPED_UNICODE);
+
+} catch (Exception $e) {
+    // Handle any uncaught exceptions
+    if (ob_get_level() > 0) ob_end_clean();
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Server error: ' . $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+    ]);
+} catch (Error $e) {
+    // Handle PHP fatal errors
+    if (ob_get_level() > 0) ob_end_clean();
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Fatal error: ' . $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
+}
