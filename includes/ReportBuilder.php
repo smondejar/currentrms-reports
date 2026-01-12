@@ -493,7 +493,16 @@ class ReportBuilder
         if ($module === 'projects' && isset($row['opportunities']) && is_array($row['opportunities'])) {
             $totalRevenue = 0;
             foreach ($row['opportunities'] as $opp) {
-                $totalRevenue += floatval($opp['charge_total'] ?? $opp['rental_charge_total'] ?? 0);
+                // Try rental_charge_total first (primary revenue field), then other total fields
+                $oppRevenue = floatval(
+                    $opp['rental_charge_total'] ??
+                    $opp['charge_total'] ??
+                    $opp['sale_charge_total'] ??
+                    $opp['service_charge_total'] ??
+                    $opp['total'] ??
+                    0
+                );
+                $totalRevenue += $oppRevenue;
             }
             $flattened['revenue'] = $totalRevenue;
             $flattened['opportunities_count'] = count($row['opportunities']);

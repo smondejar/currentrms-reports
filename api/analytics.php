@@ -113,9 +113,10 @@ $analytics = [
 ];
 
 // CurrentRMS field paths for totals (top-level fields based on actual API response)
+// rental_charge_total is the primary revenue field for rental businesses
 $oppTotalPaths = [
-    'charge_total',           // Primary field at top level
-    'rental_charge_total',    // Rental charges
+    'rental_charge_total',    // Primary - Rental charges
+    'charge_total',           // Total charges
     'sale_charge_total',      // Sale charges
     'service_charge_total',   // Service charges
     'charge_including_tax_total',
@@ -410,13 +411,13 @@ if ($projectsResponse) {
         // First try embedded opportunities
         if (!empty($project['opportunities'])) {
             foreach ($project['opportunities'] as $opp) {
-                $projectRev += floatval($opp['charge_total'] ?? 0);
+                $projectRev += floatval($opp['rental_charge_total'] ?? $opp['charge_total'] ?? 0);
             }
         }
         // If no embedded opportunities, try from our map
         elseif ($projectId && isset($projectOpportunityMap[$projectId])) {
             foreach ($projectOpportunityMap[$projectId] as $opp) {
-                $projectRev += floatval($opp['charge_total'] ?? 0);
+                $projectRev += floatval($opp['rental_charge_total'] ?? $opp['charge_total'] ?? 0);
             }
         }
 
