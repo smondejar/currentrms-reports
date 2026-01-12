@@ -144,10 +144,12 @@ class ReportBuilder
                     'name' => ['label' => 'Name', 'type' => 'string'],
                     'member_name' => ['label' => 'Client', 'type' => 'string'],
                     'status' => ['label' => 'Status', 'type' => 'string'],
+                    'category' => ['label' => 'Category', 'type' => 'string'],
                     'starts_at' => ['label' => 'Start Date', 'type' => 'datetime'],
                     'ends_at' => ['label' => 'End Date', 'type' => 'datetime'],
                     'budget' => ['label' => 'Budget', 'type' => 'currency'],
-                    'revenue' => ['label' => 'Revenue', 'type' => 'currency'],
+                    'revenue' => ['label' => 'Revenue (from Opportunities)', 'type' => 'currency'],
+                    'opportunities_count' => ['label' => 'Opportunities', 'type' => 'number'],
                     'created_at' => ['label' => 'Created', 'type' => 'datetime'],
                 ],
                 'filters' => [
@@ -324,6 +326,11 @@ class ReportBuilder
             $params['q[s]'] = $this->sorting['field'] . ' ' . $this->sorting['direction'];
         }
 
+        // Include related data for specific modules
+        if ($this->currentModule === 'projects') {
+            $params['include[]'] = 'opportunities';
+        }
+
         $response = $this->api->get($module['endpoint'], $params);
 
         $dataKey = $module['endpoint'];
@@ -386,6 +393,11 @@ class ReportBuilder
         // Add sorting
         if (!empty($this->sorting)) {
             $params['q[s]'] = $this->sorting['field'] . ' ' . $this->sorting['direction'];
+        }
+
+        // Include related data for specific modules
+        if ($this->currentModule === 'projects') {
+            $params['include[]'] = 'opportunities';
         }
 
         $rawData = $this->api->fetchAll($module['endpoint'], $params, ceil($maxRows / 100));
@@ -474,6 +486,27 @@ class ReportBuilder
         foreach ($row as $key => $value) {
             if (!is_array($value) && !is_object($value)) {
                 $flattened[$key] = $value;
+            }
+        }
+
+        // Special handling for projects: calculate revenue from opportunities
+        if ($module === 'projects' && isset($row['opportunities']) && is_array($row['opportunities'])) {
+            $totalRevenue = 0;
+            foreach ($row['opportunities'] as $opp) {
+                $totalRevenue += floatval($opp['charge_total'] ?? $opp['rental_charge_total'] ?? 0);
+            }
+            $flattened['revenue'] = $totalRevenue;
+            $flattened['opportunities_count'] = count($row['opportunities']);
+        }
+
+        // Special handling for projects: get budget from custom_fields
+        if ($module === 'projects' && isset($row['custom_fields'])) {
+            if (isset($row['custom_fields']['budget']) && !isset($flattened['budget'])) {
+                $flattened['budget'] = floatval($row['custom_fields']['budget']);
+            }
+            if (isset($row['custom_fields']['category']) && !isset($flattened['category'])) {
+                $cat = $row['custom_fields']['category'];
+                $flattened['category'] = is_array($cat) ? ($cat['name'] ?? json_encode($cat)) : $cat;
             }
         }
 
