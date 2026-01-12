@@ -43,8 +43,8 @@ $analytics = [
     'timeline' => [],
 ];
 
+// KPI: Total Revenue (from invoices in date range)
 try {
-    // KPI: Total Revenue (from invoices in date range)
     $invoices = $api->get('invoices', [
         'per_page' => 100,
         'q[invoice_date_gteq]' => $startDate,
@@ -75,8 +75,12 @@ try {
         'change' => $revenueChange,
         'label' => 'Total Revenue',
     ];
+} catch (Exception $e) {
+    $analytics['kpis']['revenue'] = ['value' => 0, 'change' => 0, 'label' => 'Total Revenue'];
+}
 
-    // KPI: Opportunities (closed/won in date range)
+// KPI: Opportunities (active in date range)
+try {
     $opportunities = $api->get('opportunities', [
         'per_page' => 100,
         'q[created_at_gteq]' => $startDate,
@@ -101,8 +105,12 @@ try {
         'change' => $oppChange,
         'label' => 'Active Opportunities',
     ];
+} catch (Exception $e) {
+    $analytics['kpis']['opportunities'] = ['value' => 0, 'change' => 0, 'label' => 'Active Opportunities'];
+}
 
-    // KPI: New Customers (members created in date range)
+// KPI: New Customers (members created in date range)
+try {
     $members = $api->get('members', [
         'per_page' => 1,
         'q[created_at_gteq]' => $startDate,
@@ -125,13 +133,16 @@ try {
         'change' => $custChange,
         'label' => 'New Customers',
     ];
+} catch (Exception $e) {
+    $analytics['kpis']['customers'] = ['value' => 0, 'change' => 0, 'label' => 'New Customers'];
+}
 
-    // KPI: Product Utilisation
+// KPI: Product Utilisation
+try {
     $stockLevels = $api->get('stock_levels', ['per_page' => 100]);
     $totalOwned = 0;
     $totalBooked = 0;
     foreach ($stockLevels['stock_levels'] ?? [] as $level) {
-        // Try different possible field names for stock quantity
         $owned = floatval($level['quantity_owned'] ?? $level['quantity'] ?? $level['stock_quantity'] ?? 0);
         $booked = floatval($level['quantity_booked'] ?? $level['booked'] ?? 0);
         $totalOwned += $owned;
@@ -145,8 +156,12 @@ try {
         'label' => 'Product Utilisation',
         'format' => 'percent',
     ];
+} catch (Exception $e) {
+    $analytics['kpis']['utilisation'] = ['value' => 0, 'change' => 0, 'label' => 'Product Utilisation'];
+}
 
-    // Chart: Revenue Trend (monthly)
+// Chart: Revenue Trend (monthly)
+try {
     $revenueByMonth = [];
     $allInvoices = $api->get('invoices', [
         'per_page' => 100,
@@ -170,8 +185,12 @@ try {
         'labels' => array_keys($months),
         'values' => array_values($months),
     ];
+} catch (Exception $e) {
+    $analytics['charts']['revenue_trend'] = ['labels' => [], 'values' => []];
+}
 
-    // Chart: Opportunities by Status
+// Chart: Opportunities by Status
+try {
     $oppByStatus = [];
     $allOpportunities = $api->get('opportunities', [
         'per_page' => 100,
@@ -187,8 +206,12 @@ try {
         'labels' => array_keys($oppByStatus),
         'values' => array_values($oppByStatus),
     ];
+} catch (Exception $e) {
+    $analytics['charts']['opp_status'] = ['labels' => [], 'values' => []];
+}
 
-    // Chart: Top Products by Revenue (from opportunity items)
+// Chart: Top Products by Revenue (from opportunity items)
+try {
     $productRevenue = [];
     $oppItems = $api->get('opportunity_items', [
         'per_page' => 100,
@@ -209,8 +232,12 @@ try {
         'labels' => array_keys($topProducts),
         'values' => array_values($topProducts),
     ];
+} catch (Exception $e) {
+    $analytics['charts']['top_products'] = ['labels' => [], 'values' => []];
+}
 
-    // Chart: Customer Segments (by member type or tags)
+// Chart: Customer Segments (by member type or tags)
+try {
     $memberTypes = [];
     $allMembers = $api->get('members', [
         'per_page' => 100,
@@ -225,8 +252,12 @@ try {
         'labels' => array_keys($memberTypes),
         'values' => array_values($memberTypes),
     ];
+} catch (Exception $e) {
+    $analytics['charts']['customer_segments'] = ['labels' => [], 'values' => []];
+}
 
-    // Timeline: Recent Activity
+// Timeline: Recent Activity
+try {
     $timeline = [];
 
     // Recent invoices
@@ -236,7 +267,6 @@ try {
     ]);
 
     foreach ($recentInvoices['invoices'] ?? [] as $inv) {
-        // Get member name from nested object or direct field
         $memberName = 'Unknown';
         if (isset($inv['member']['name'])) {
             $memberName = $inv['member']['name'];
@@ -261,7 +291,6 @@ try {
     ]);
 
     foreach ($recentOpps['opportunities'] ?? [] as $opp) {
-        // Get member name from nested object or direct field
         $memberName = 'Unknown';
         if (isset($opp['member']['name'])) {
             $memberName = $opp['member']['name'];
@@ -285,11 +314,8 @@ try {
     });
 
     $analytics['timeline'] = array_slice($timeline, 0, 10);
-
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
-    exit;
+    $analytics['timeline'] = [];
 }
 
 echo json_encode($analytics);

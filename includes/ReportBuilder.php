@@ -518,9 +518,10 @@ class ReportBuilder
                 'balance' => [['balance'], ['outstanding'], ['amount_due']],
             ],
             'projects' => [
-                'member_name' => [['member', 'name'], ['client_name']],
-                'budget' => [['budget'], ['budget_total']],
-                'revenue' => [['revenue'], ['revenue_total'], ['total_revenue']],
+                'member_name' => [['member', 'name'], ['client_name'], ['customer_name']],
+                'budget' => [['budget'], ['budget_total'], ['estimated_budget'], ['totals', 'budget']],
+                'revenue' => [['revenue'], ['revenue_total'], ['total_revenue'], ['charge_total'], ['totals', 'charge_total'], ['totals', 'grand_total'], ['actual_revenue']],
+                'status' => [['status'], ['state'], ['project_status']],
             ],
             'purchase_orders' => [
                 'supplier_name' => [['supplier', 'name'], ['vendor', 'name']],
