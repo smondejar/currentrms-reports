@@ -121,11 +121,20 @@ $oppTotalPaths = [
 // =====================
 // KPI: Total Revenue
 // =====================
+// First try with date filter, then without if no results
 $oppsForRevenue = safeApiCall($api, 'opportunities', [
-    'per_page' => 100,
+    'per_page' => 200,
     'q[starts_at_gteq]' => $startDate,
     'q[starts_at_lteq]' => $endDate,
 ]);
+
+// If no opportunities in date range, try without date filter
+if (!$oppsForRevenue || empty($oppsForRevenue['opportunities'])) {
+    $oppsForRevenue = safeApiCall($api, 'opportunities', [
+        'per_page' => 200,
+    ]);
+    $analytics['debug']['date_filter_bypassed'] = true;
+}
 
 if ($oppsForRevenue) {
     $totalRevenue = 0;
@@ -186,9 +195,18 @@ if ($oppsForRevenue) {
 // =====================
 // KPI: Active Projects
 // =====================
+// Include opportunities in project fetch if supported
 $projectsResponse = safeApiCall($api, 'projects', [
     'per_page' => 100,
+    'include[]' => 'opportunities',
 ]);
+
+// If include didn't work, try without
+if (!$projectsResponse || empty($projectsResponse['projects'])) {
+    $projectsResponse = safeApiCall($api, 'projects', [
+        'per_page' => 100,
+    ]);
+}
 
 if ($projectsResponse) {
     $projectCount = count($projectsResponse['projects'] ?? []);
@@ -198,6 +216,9 @@ if ($projectsResponse) {
     if (!empty($projectsResponse['projects'])) {
         $firstProject = $projectsResponse['projects'][0];
         $analytics['debug']['first_project_keys'] = array_keys($firstProject);
+        $analytics['debug']['first_project_has_opps'] = isset($firstProject['opportunities']);
+        $analytics['debug']['first_project_custom_fields'] = $firstProject['custom_fields'] ?? 'NOT_SET';
+        $analytics['debug']['first_project_name'] = $firstProject['name'] ?? 'NOT_SET';
     }
 }
 
@@ -283,18 +304,37 @@ if ($oppsForRevenue) {
 // =====================
 // Chart: Top Products by Revenue
 // =====================
+// Try to get opportunity_items - first with date filter, then without
 $opportunityItems = safeApiCall($api, 'opportunity_items', [
     'per_page' => 200,
-    'q[opportunity_starts_at_gteq]' => $startDate,
-    'q[opportunity_starts_at_lteq]' => $endDate,
 ]);
 
 if ($opportunityItems) {
     $productRevenue = [];
+    $analytics['debug']['opportunity_items_count'] = count($opportunityItems['opportunity_items'] ?? []);
+
+    // Debug first item structure
+    if (!empty($opportunityItems['opportunity_items'])) {
+        $firstItem = $opportunityItems['opportunity_items'][0];
+        $analytics['debug']['first_item_keys'] = array_keys($firstItem);
+        $analytics['debug']['first_item_charge'] = $firstItem['charge_total'] ?? $firstItem['total'] ?? 'NOT_FOUND';
+        $analytics['debug']['first_item_product'] = $firstItem['product']['name'] ?? $firstItem['name'] ?? 'NOT_FOUND';
+    }
+
     foreach ($opportunityItems['opportunity_items'] ?? [] as $item) {
-        $productName = $item['product']['name'] ?? $item['name'] ?? 'Unknown Product';
-        $itemTotal = floatval($item['charge_total'] ?? $item['price_total'] ?? $item['total'] ?? 0);
-        $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $itemTotal;
+        $productName = $item['product']['name'] ?? $item['name'] ?? $item['item_name'] ?? 'Unknown Product';
+        // Try multiple field names for the total
+        $itemTotal = floatval(
+            $item['charge_total'] ??
+            $item['total'] ??
+            $item['price_total'] ??
+            $item['row_total'] ??
+            $item['subtotal'] ??
+            ($item['quantity'] ?? 0) * ($item['price'] ?? 0)
+        );
+        if ($productName !== 'Unknown Product') {
+            $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $itemTotal;
+        }
     }
 
     arsort($productRevenue);
@@ -313,27 +353,63 @@ if ($opportunityItems) {
 if ($projectsResponse) {
     $categoryCount = [];
     $categoryRevenue = [];
+    $projectOpportunityMap = [];
+
+    // Build map of project_id -> opportunities from oppsForRevenue if projects don't have embedded opportunities
+    if ($oppsForRevenue) {
+        foreach ($oppsForRevenue['opportunities'] ?? [] as $opp) {
+            $projectId = $opp['project_id'] ?? $opp['project']['id'] ?? null;
+            if ($projectId) {
+                if (!isset($projectOpportunityMap[$projectId])) {
+                    $projectOpportunityMap[$projectId] = [];
+                }
+                $projectOpportunityMap[$projectId][] = $opp;
+            }
+        }
+    }
+    $analytics['debug']['project_opp_map_count'] = count($projectOpportunityMap);
 
     foreach ($projectsResponse['projects'] ?? [] as $project) {
-        // Get category from custom_fields
-        $category = $project['custom_fields']['category'] ??
-                    $project['category'] ??
-                    $project['project_type'] ??
-                    'Uncategorized';
+        $projectId = $project['id'] ?? null;
+
+        // Get category from multiple possible sources
+        $category = null;
+        if (!empty($project['custom_fields']['category'])) {
+            $category = $project['custom_fields']['category'];
+        } elseif (!empty($project['category'])) {
+            $category = $project['category'];
+        } elseif (!empty($project['project_type'])) {
+            $category = $project['project_type'];
+        } elseif (!empty($project['type'])) {
+            $category = $project['type'];
+        }
+
+        // If still null, use status or default
+        if (empty($category)) {
+            $category = $project['status'] ?? 'Uncategorized';
+        }
 
         // Count projects per category
         $categoryCount[$category] = ($categoryCount[$category] ?? 0) + 1;
 
-        // Calculate project revenue from embedded opportunities
-        $projectRevenue = 0;
+        // Calculate project revenue
+        $projectRev = 0;
+
+        // First try embedded opportunities
         if (!empty($project['opportunities'])) {
             foreach ($project['opportunities'] as $opp) {
-                $projectRevenue += floatval($opp['charge_total'] ?? 0);
+                $projectRev += floatval($opp['charge_total'] ?? 0);
+            }
+        }
+        // If no embedded opportunities, try from our map
+        elseif ($projectId && isset($projectOpportunityMap[$projectId])) {
+            foreach ($projectOpportunityMap[$projectId] as $opp) {
+                $projectRev += floatval($opp['charge_total'] ?? 0);
             }
         }
 
         // Sum revenue per category
-        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $projectRevenue;
+        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $projectRev;
     }
 
     // Sort by count for projects by category
