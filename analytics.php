@@ -21,6 +21,13 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
     <title><?php echo e($pageTitle); ?> - CurrentRMS Report Builder</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Load theme immediately to prevent flash of wrong theme
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 <body>
     <div class="app-layout">

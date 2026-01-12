@@ -131,8 +131,11 @@ try {
     $totalOwned = 0;
     $totalBooked = 0;
     foreach ($stockLevels['stock_levels'] ?? [] as $level) {
-        $totalOwned += floatval($level['quantity_owned'] ?? 0);
-        $totalBooked += floatval($level['quantity_booked'] ?? 0);
+        // Try different possible field names for stock quantity
+        $owned = floatval($level['quantity_owned'] ?? $level['quantity'] ?? $level['stock_quantity'] ?? 0);
+        $booked = floatval($level['quantity_booked'] ?? $level['booked'] ?? 0);
+        $totalOwned += $owned;
+        $totalBooked += $booked;
     }
     $utilisation = $totalOwned > 0 ? round(($totalBooked / $totalOwned) * 100, 1) : 0;
 
@@ -233,10 +236,20 @@ try {
     ]);
 
     foreach ($recentInvoices['invoices'] ?? [] as $inv) {
+        // Get member name from nested object or direct field
+        $memberName = 'Unknown';
+        if (isset($inv['member']['name'])) {
+            $memberName = $inv['member']['name'];
+        } elseif (isset($inv['member_name'])) {
+            $memberName = $inv['member_name'];
+        } elseif (isset($inv['billing_address']['name'])) {
+            $memberName = $inv['billing_address']['name'];
+        }
+
         $timeline[] = [
-            'date' => $inv['created_at'] ?? $inv['invoice_date'],
-            'title' => 'Invoice #' . ($inv['number'] ?? $inv['id']) . ' - ' . ucfirst($inv['state'] ?? 'created'),
-            'description' => ($inv['member']['name'] ?? 'Unknown') . ' - ' . formatCurrency($inv['total'] ?? 0),
+            'date' => $inv['created_at'] ?? $inv['invoice_date'] ?? date('Y-m-d'),
+            'title' => 'Invoice #' . ($inv['number'] ?? $inv['id'] ?? '?') . ' - ' . ucfirst($inv['state'] ?? 'created'),
+            'description' => $memberName . ' - ' . formatCurrency($inv['total'] ?? 0),
             'type' => 'invoice',
         ];
     }
@@ -248,10 +261,20 @@ try {
     ]);
 
     foreach ($recentOpps['opportunities'] ?? [] as $opp) {
+        // Get member name from nested object or direct field
+        $memberName = 'Unknown';
+        if (isset($opp['member']['name'])) {
+            $memberName = $opp['member']['name'];
+        } elseif (isset($opp['member_name'])) {
+            $memberName = $opp['member_name'];
+        } elseif (isset($opp['billing_address']['name'])) {
+            $memberName = $opp['billing_address']['name'];
+        }
+
         $timeline[] = [
-            'date' => $opp['created_at'],
+            'date' => $opp['created_at'] ?? date('Y-m-d'),
             'title' => 'Opportunity: ' . ($opp['subject'] ?? 'Untitled'),
-            'description' => ($opp['member']['name'] ?? 'Unknown') . ' - ' . ucfirst($opp['status'] ?? 'draft'),
+            'description' => $memberName . ' - ' . ucfirst($opp['status'] ?? 'draft'),
             'type' => 'opportunity',
         ];
     }

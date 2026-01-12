@@ -17,6 +17,7 @@ const App = {
 
     // Initialize application
     init() {
+        this.initTheme();
         this.initSidebar();
         this.initDropdowns();
         this.initModals();
@@ -24,6 +25,34 @@ const App = {
         this.initForms();
         this.initTooltips();
         this.initCharts();
+    },
+
+    // Theme/Dark Mode
+    initTheme() {
+        // Load saved theme preference or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        this.setTheme(savedTheme);
+
+        // Bind toggle button
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                this.setTheme(newTheme);
+            });
+        }
+    },
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+
+        // Update toggle button tooltip
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.setAttribute('data-tooltip', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        }
     },
 
     // Sidebar toggle for mobile
