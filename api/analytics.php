@@ -393,6 +393,14 @@ if ($projectsResponse) {
             $category = $project['status'] ?? 'Uncategorized';
         }
 
+        // Ensure category is a string (handle arrays/objects)
+        if (is_array($category)) {
+            $category = $category['name'] ?? $category[0] ?? json_encode($category);
+        } elseif (is_object($category)) {
+            $category = $category->name ?? (string)$category;
+        }
+        $category = (string) $category;
+
         // Count projects per category
         $categoryCount[$category] = ($categoryCount[$category] ?? 0) + 1;
 
