@@ -142,8 +142,8 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                     <label for="widget-opportunities">Active Opportunities</label>
                                 </div>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-customers" checked onchange="toggleWidget('customers')">
-                                    <label for="widget-customers">New Customers</label>
+                                    <input type="checkbox" id="widget-projects" checked onchange="toggleWidget('projects')">
+                                    <label for="widget-projects">Active Projects</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-utilisation" checked onchange="toggleWidget('utilisation')">
@@ -218,20 +218,18 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                         </div>
                     </div>
 
-                    <div class="stat-card" data-widget="customers">
+                    <div class="stat-card" data-widget="projects">
                         <div class="stat-icon warning">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
                             </svg>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-label">New Customers</div>
-                            <div class="stat-value" id="kpi-customers">
+                            <div class="stat-label">Active Projects</div>
+                            <div class="stat-value" id="kpi-projects">
                                 <div class="spinner" style="width: 20px; height: 20px;"></div>
                             </div>
-                            <div class="stat-change" id="kpi-cust-change"></div>
+                            <div class="stat-change" id="kpi-proj-change"></div>
                         </div>
                     </div>
 
@@ -468,10 +466,10 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 updateChange('kpi-opp-change', kpis.opportunities.change);
             }
 
-            // Customers
-            if (kpis.customers) {
-                document.getElementById('kpi-customers').textContent = parseInt(kpis.customers.value || 0).toLocaleString();
-                updateChange('kpi-cust-change', kpis.customers.change);
+            // Projects
+            if (kpis.projects) {
+                document.getElementById('kpi-projects').textContent = parseInt(kpis.projects.value || 0).toLocaleString();
+                updateChange('kpi-proj-change', kpis.projects.change);
             }
 
             // Utilisation

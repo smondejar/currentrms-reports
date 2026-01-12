@@ -8,6 +8,10 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 
 header('Content-Type: application/json');
 
+// Increase error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
 // Check authentication
 if (!Auth::check()) {
     http_response_code(401);
@@ -55,6 +59,17 @@ function getFieldValue($item, $paths, $default = 0) {
     return $default;
 }
 
+// Safe API call wrapper
+function safeApiCall($api, $endpoint, $params = []) {
+    try {
+        $result = $api->get($endpoint, $params);
+        return $result;
+    } catch (Exception $e) {
+        error_log("Analytics API call failed for {$endpoint}: " . $e->getMessage());
+        return null;
+    }
+}
+
 // Get date range
 $days = (int) ($_GET['days'] ?? 30);
 $startDate = date('Y-m-d', strtotime("-{$days} days"));
@@ -62,69 +77,70 @@ $endDate = date('Y-m-d');
 $previousStartDate = date('Y-m-d', strtotime("-" . ($days * 2) . " days"));
 $previousEndDate = date('Y-m-d', strtotime("-{$days} days"));
 
+// Initialize with default values
 $analytics = [
-    'kpis' => [],
-    'charts' => [],
+    'kpis' => [
+        'revenue' => ['value' => 0, 'change' => 0, 'label' => 'Total Revenue'],
+        'opportunities' => ['value' => 0, 'change' => 0, 'label' => 'Active Opportunities'],
+        'projects' => ['value' => 0, 'change' => 0, 'label' => 'Active Projects'],
+        'utilisation' => ['value' => 0, 'change' => 0, 'label' => 'Product Utilisation', 'format' => 'percent'],
+    ],
+    'charts' => [
+        'revenue_trend' => ['labels' => [], 'values' => []],
+        'opp_status' => ['labels' => [], 'values' => []],
+        'top_products' => ['labels' => [], 'values' => []],
+        'customer_segments' => ['labels' => [], 'values' => []],
+        'project_categories' => ['labels' => [], 'values' => []],
+        'category_revenue' => ['labels' => [], 'values' => []],
+        'opportunity_types' => ['labels' => [], 'values' => []],
+    ],
     'timeline' => [],
 ];
 
-// Field paths for invoice total - try multiple possibilities
+// Field paths for totals
 $invoiceTotalPaths = [
     ['totals', 'total'],
     ['totals', 'grand_total'],
     'total',
     'grand_total',
     'gross_total',
-    ['totals', 'gross_total'],
 ];
 
-// KPI: Total Revenue (from invoices in date range)
-try {
-    $invoices = $api->get('invoices', [
-        'per_page' => 100,
-        'q[invoice_date_gteq]' => $startDate,
-        'q[invoice_date_lteq]' => $endDate,
-    ]);
+$oppTotalPaths = [
+    ['totals', 'charge_total'],
+    ['totals', 'grand_total'],
+    'charge_total',
+    'grand_total',
+    'rental_charge_total',
+];
 
+// KPI: Total Revenue (from opportunities - more reliable than invoices)
+$oppsForRevenue = safeApiCall($api, 'opportunities', [
+    'per_page' => 100,
+    'q[starts_at_gteq]' => $startDate,
+    'q[starts_at_lteq]' => $endDate,
+]);
+
+if ($oppsForRevenue) {
     $totalRevenue = 0;
-    foreach ($invoices['invoices'] ?? [] as $inv) {
-        $total = getFieldValue($inv, $invoiceTotalPaths, 0);
+    foreach ($oppsForRevenue['opportunities'] ?? [] as $opp) {
+        $total = getFieldValue($opp, $oppTotalPaths, 0);
         $totalRevenue += floatval($total);
     }
 
-    // If no invoice revenue, try opportunity revenue instead
-    if ($totalRevenue == 0) {
-        $opps = $api->get('opportunities', [
-            'per_page' => 100,
-            'q[starts_at_gteq]' => $startDate,
-            'q[starts_at_lteq]' => $endDate,
-        ]);
-
-        $oppTotalPaths = [
-            ['totals', 'charge_total'],
-            ['totals', 'grand_total'],
-            'charge_total',
-            'grand_total',
-            'rental_charge_total',
-        ];
-
-        foreach ($opps['opportunities'] ?? [] as $opp) {
-            $total = getFieldValue($opp, $oppTotalPaths, 0);
-            $totalRevenue += floatval($total);
-        }
-    }
-
-    // Previous period revenue
-    $prevInvoices = $api->get('invoices', [
+    // Get previous period
+    $prevOppsForRevenue = safeApiCall($api, 'opportunities', [
         'per_page' => 100,
-        'q[invoice_date_gteq]' => $previousStartDate,
-        'q[invoice_date_lteq]' => $previousEndDate,
+        'q[starts_at_gteq]' => $previousStartDate,
+        'q[starts_at_lteq]' => $previousEndDate,
     ]);
 
     $prevRevenue = 0;
-    foreach ($prevInvoices['invoices'] ?? [] as $inv) {
-        $total = getFieldValue($inv, $invoiceTotalPaths, 0);
-        $prevRevenue += floatval($total);
+    if ($prevOppsForRevenue) {
+        foreach ($prevOppsForRevenue['opportunities'] ?? [] as $opp) {
+            $total = getFieldValue($opp, $oppTotalPaths, 0);
+            $prevRevenue += floatval($total);
+        }
     }
 
     $revenueChange = $prevRevenue > 0 ? round((($totalRevenue - $prevRevenue) / $prevRevenue) * 100, 1) : 0;
@@ -134,99 +150,59 @@ try {
         'change' => $revenueChange,
         'label' => 'Total Revenue',
     ];
-} catch (Exception $e) {
-    $analytics['kpis']['revenue'] = ['value' => 0, 'change' => 0, 'label' => 'Total Revenue'];
 }
 
-// KPI: Opportunities (active in date range)
-try {
-    $opportunities = $api->get('opportunities', [
-        'per_page' => 100,
-        'q[created_at_gteq]' => $startDate,
-        'q[created_at_lteq]' => $endDate,
-        'filtermode' => 'active',
-    ]);
+// KPI: Active Opportunities
+$activeOpps = safeApiCall($api, 'opportunities', [
+    'per_page' => 1,
+    'filtermode' => 'active',
+]);
 
-    $oppCount = $opportunities['meta']['total_row_count'] ?? count($opportunities['opportunities'] ?? []);
-
-    $prevOpportunities = $api->get('opportunities', [
-        'per_page' => 1,
-        'q[created_at_gteq]' => $previousStartDate,
-        'q[created_at_lteq]' => $previousEndDate,
-        'filtermode' => 'active',
-    ]);
-
-    $prevOppCount = $prevOpportunities['meta']['total_row_count'] ?? 0;
-    $oppChange = $prevOppCount > 0 ? round((($oppCount - $prevOppCount) / $prevOppCount) * 100, 1) : 0;
+if ($activeOpps) {
+    $oppCount = $activeOpps['meta']['total_row_count'] ?? count($activeOpps['opportunities'] ?? []);
 
     $analytics['kpis']['opportunities'] = [
         'value' => $oppCount,
-        'change' => $oppChange,
+        'change' => 0,
         'label' => 'Active Opportunities',
     ];
-} catch (Exception $e) {
-    $analytics['kpis']['opportunities'] = ['value' => 0, 'change' => 0, 'label' => 'Active Opportunities'];
 }
 
-// KPI: New Customers (members created in date range)
-try {
-    $members = $api->get('members', [
-        'per_page' => 1,
-        'q[created_at_gteq]' => $startDate,
-        'q[created_at_lteq]' => $endDate,
-    ]);
+// KPI: Active Projects (replacing New Customers)
+$activeProjects = safeApiCall($api, 'projects', [
+    'per_page' => 1,
+    'filtermode' => 'active',
+]);
 
-    $newCustomers = $members['meta']['total_row_count'] ?? 0;
+if ($activeProjects) {
+    $projectCount = $activeProjects['meta']['total_row_count'] ?? count($activeProjects['projects'] ?? []);
 
-    $prevMembers = $api->get('members', [
-        'per_page' => 1,
-        'q[created_at_gteq]' => $previousStartDate,
-        'q[created_at_lteq]' => $previousEndDate,
-    ]);
-
-    $prevCustomers = $prevMembers['meta']['total_row_count'] ?? 0;
-    $custChange = $prevCustomers > 0 ? round((($newCustomers - $prevCustomers) / $prevCustomers) * 100, 1) : 0;
-
-    $analytics['kpis']['customers'] = [
-        'value' => $newCustomers,
-        'change' => $custChange,
-        'label' => 'New Customers',
+    $analytics['kpis']['projects'] = [
+        'value' => $projectCount,
+        'change' => 0,
+        'label' => 'Active Projects',
     ];
-} catch (Exception $e) {
-    $analytics['kpis']['customers'] = ['value' => 0, 'change' => 0, 'label' => 'New Customers'];
 }
 
-// KPI: Product Utilisation (from products with stock method)
-try {
-    $products = $api->get('products', ['per_page' => 100]);
+// KPI: Product Utilisation (simplified - just count products)
+$products = safeApiCall($api, 'products', ['per_page' => 100]);
+
+if ($products) {
     $totalOwned = 0;
     $totalBooked = 0;
 
-    $stockPaths = [
-        'owned' => [['stock_level', 'quantity_owned'], 'quantity_owned', 'stock_method_quantity', ['stock', 'owned']],
-        'booked' => [['stock_level', 'quantity_booked'], 'quantity_booked', ['stock', 'booked']],
-    ];
-
     foreach ($products['products'] ?? [] as $product) {
-        $owned = floatval(getFieldValue($product, $stockPaths['owned'], 0));
-        $booked = floatval(getFieldValue($product, $stockPaths['booked'], 0));
+        $owned = floatval(getFieldValue($product, [
+            ['stock_level', 'quantity_owned'],
+            'quantity_owned',
+            'stock_method_quantity'
+        ], 0));
+        $booked = floatval(getFieldValue($product, [
+            ['stock_level', 'quantity_booked'],
+            'quantity_booked'
+        ], 0));
         $totalOwned += $owned;
         $totalBooked += $booked;
-    }
-
-    // If no data from products, try stock_levels endpoint
-    if ($totalOwned == 0) {
-        $stockLevels = $api->get('stock_levels', ['per_page' => 100]);
-        foreach ($stockLevels['stock_levels'] ?? [] as $level) {
-            $owned = floatval(getFieldValue($level, [
-                'quantity_owned', 'quantity', 'stock_quantity', 'owned'
-            ], 0));
-            $booked = floatval(getFieldValue($level, [
-                'quantity_booked', 'booked', 'quantity_allocated'
-            ], 0));
-            $totalOwned += $owned;
-            $totalBooked += $booked;
-        }
     }
 
     $utilisation = $totalOwned > 0 ? round(($totalBooked / $totalOwned) * 100, 1) : 0;
@@ -237,28 +213,17 @@ try {
         'label' => 'Product Utilisation',
         'format' => 'percent',
     ];
-} catch (Exception $e) {
-    $analytics['kpis']['utilisation'] = ['value' => 0, 'change' => 0, 'label' => 'Product Utilisation'];
 }
 
-// Chart: Revenue Trend (monthly) - use opportunities for more reliable data
-try {
+// Chart: Revenue Trend (monthly from opportunities)
+$allOpps = safeApiCall($api, 'opportunities', [
+    'per_page' => 200,
+    'q[starts_at_gteq]' => date('Y-m-d', strtotime('-12 months')),
+    'q[s]' => 'starts_at asc',
+]);
+
+if ($allOpps) {
     $revenueByMonth = [];
-
-    // Get opportunities from last 12 months
-    $allOpps = $api->get('opportunities', [
-        'per_page' => 200,
-        'q[starts_at_gteq]' => date('Y-m-d', strtotime('-12 months')),
-        'q[s]' => 'starts_at asc',
-    ]);
-
-    $oppTotalPaths = [
-        ['totals', 'charge_total'],
-        ['totals', 'grand_total'],
-        'charge_total',
-        'grand_total',
-        'rental_charge_total',
-    ];
 
     foreach ($allOpps['opportunities'] ?? [] as $opp) {
         $date = $opp['starts_at'] ?? $opp['created_at'] ?? null;
@@ -280,19 +245,18 @@ try {
         'labels' => array_keys($months),
         'values' => array_values($months),
     ];
-} catch (Exception $e) {
-    $analytics['charts']['revenue_trend'] = ['labels' => [], 'values' => []];
 }
 
 // Chart: Opportunities by Status
-try {
-    $oppByStatus = [];
-    $allOpportunities = $api->get('opportunities', [
-        'per_page' => 200,
-        'filtermode' => 'active',
-    ]);
+$allActiveOpps = safeApiCall($api, 'opportunities', [
+    'per_page' => 200,
+    'filtermode' => 'active',
+]);
 
-    foreach ($allOpportunities['opportunities'] ?? [] as $opp) {
+if ($allActiveOpps) {
+    $oppByStatus = [];
+
+    foreach ($allActiveOpps['opportunities'] ?? [] as $opp) {
         $status = $opp['status'] ?? $opp['state'] ?? 'Unknown';
         $oppByStatus[$status] = ($oppByStatus[$status] ?? 0) + 1;
     }
@@ -301,84 +265,49 @@ try {
         'labels' => array_keys($oppByStatus),
         'values' => array_values($oppByStatus),
     ];
-} catch (Exception $e) {
-    $analytics['charts']['opp_status'] = ['labels' => [], 'values' => []];
 }
 
-// Chart: Top Products by Revenue (from opportunities)
-try {
+// Chart: Top Products by Revenue
+if ($allOpps) {
     $productRevenue = [];
 
-    // Get opportunities with items
-    $oppsWithItems = $api->get('opportunities', [
-        'per_page' => 50,
-        'include[]' => 'opportunity_items',
-    ]);
-
-    $itemTotalPaths = [
-        'charge_total',
-        'total',
-        ['totals', 'charge_total'],
-        'rental_charge_total',
-        'price',
-    ];
-
-    foreach ($oppsWithItems['opportunities'] ?? [] as $opp) {
+    foreach ($allOpps['opportunities'] ?? [] as $opp) {
         foreach ($opp['opportunity_items'] ?? [] as $item) {
             $productName = getFieldValue($item, [
                 ['product', 'name'],
                 'product_name',
                 'name',
-                'description',
             ], 'Unknown');
-            $revenue = floatval(getFieldValue($item, $itemTotalPaths, 0));
-            if ($revenue > 0) {
+            $revenue = floatval(getFieldValue($item, [
+                'charge_total',
+                'total',
+                'price',
+            ], 0));
+            if ($revenue > 0 && $productName !== 'Unknown') {
                 $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $revenue;
             }
         }
     }
 
-    // If no items found, try opportunity_items endpoint directly
-    if (empty($productRevenue)) {
-        $oppItems = $api->get('opportunity_items', [
-            'per_page' => 100,
-        ]);
+    if (!empty($productRevenue)) {
+        arsort($productRevenue);
+        $topProducts = array_slice($productRevenue, 0, 10, true);
 
-        foreach ($oppItems['opportunity_items'] ?? [] as $item) {
-            $productName = getFieldValue($item, [
-                ['product', 'name'],
-                'product_name',
-                'name',
-                'description',
-            ], 'Unknown');
-            $revenue = floatval(getFieldValue($item, $itemTotalPaths, 0));
-            if ($revenue > 0) {
-                $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $revenue;
-            }
-        }
+        $analytics['charts']['top_products'] = [
+            'labels' => array_keys($topProducts),
+            'values' => array_values($topProducts),
+        ];
     }
-
-    // Sort and get top 10
-    arsort($productRevenue);
-    $topProducts = array_slice($productRevenue, 0, 10, true);
-
-    $analytics['charts']['top_products'] = [
-        'labels' => array_keys($topProducts),
-        'values' => array_values($topProducts),
-    ];
-} catch (Exception $e) {
-    $analytics['charts']['top_products'] = ['labels' => [], 'values' => []];
 }
 
-// Chart: Customer Segments (by member type)
-try {
+// Chart: Customer Segments
+$allMembers = safeApiCall($api, 'members', ['per_page' => 100]);
+
+if ($allMembers) {
     $memberTypes = [];
-    $allMembers = $api->get('members', [
-        'per_page' => 100,
-    ]);
 
     foreach ($allMembers['members'] ?? [] as $member) {
-        $type = $member['member_type_name'] ?? $member['type'] ?? $member['member_type'] ?? 'Other';
+        $type = $member['member_type_name'] ?? $member['type'] ?? 'Other';
         $memberTypes[$type] = ($memberTypes[$type] ?? 0) + 1;
     }
 
@@ -386,30 +315,19 @@ try {
         'labels' => array_keys($memberTypes),
         'values' => array_values($memberTypes),
     ];
-} catch (Exception $e) {
-    $analytics['charts']['customer_segments'] = ['labels' => [], 'values' => []];
 }
 
-// Chart: Projects by Category (custom field)
-try {
+// Chart: Projects by Category
+$allProjects = safeApiCall($api, 'projects', ['per_page' => 100]);
+
+if ($allProjects) {
     $projectCategories = [];
-    $projects = $api->get('projects', [
-        'per_page' => 100,
-    ]);
+    $categoryRevenue = [];
 
-    foreach ($projects['projects'] ?? [] as $project) {
-        // Try to get category from custom fields or direct field
-        $category = getFieldValue($project, [
-            ['custom_fields', 'category'],
-            ['custom_fields', 'Category'],
-            ['custom_fields', 'categories'],
-            ['custom_fields', 'Categories'],
-            'category',
-            'project_type',
-            'type',
-        ], 'Uncategorized');
+    foreach ($allProjects['projects'] ?? [] as $project) {
+        // Try to get category from custom fields
+        $category = 'Uncategorized';
 
-        // Also check for custom field values in different formats
         if (isset($project['custom_field_values']) && is_array($project['custom_field_values'])) {
             foreach ($project['custom_field_values'] as $cfv) {
                 $fieldName = strtolower($cfv['custom_field_name'] ?? $cfv['name'] ?? '');
@@ -420,96 +338,57 @@ try {
             }
         }
 
+        // Fallback to direct fields
+        if ($category === 'Uncategorized') {
+            $category = getFieldValue($project, [
+                ['custom_fields', 'category'],
+                'category',
+                'project_type',
+            ], 'Uncategorized');
+        }
+
         $projectCategories[$category] = ($projectCategories[$category] ?? 0) + 1;
+
+        // Revenue by category
+        $revenue = floatval(getFieldValue($project, [
+            'revenue',
+            'revenue_total',
+            ['totals', 'charge_total'],
+            'charge_total',
+        ], 0));
+        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $revenue;
     }
 
     $analytics['charts']['project_categories'] = [
         'labels' => array_keys($projectCategories),
         'values' => array_values($projectCategories),
     ];
-} catch (Exception $e) {
-    $analytics['charts']['project_categories'] = ['labels' => [], 'values' => []];
-}
 
-// Chart: Revenue by Project Category
-try {
-    $categoryRevenue = [];
-    $projects = $api->get('projects', [
-        'per_page' => 100,
-        'include[]' => 'opportunities',
-    ]);
-
-    $revenuePaths = [
-        'revenue',
-        'revenue_total',
-        ['totals', 'charge_total'],
-        'charge_total',
-        'budget',
-    ];
-
-    foreach ($projects['projects'] ?? [] as $project) {
-        $category = getFieldValue($project, [
-            ['custom_fields', 'category'],
-            ['custom_fields', 'Category'],
-            'category',
-            'project_type',
-        ], 'Uncategorized');
-
-        // Check custom field values
-        if (isset($project['custom_field_values']) && is_array($project['custom_field_values'])) {
-            foreach ($project['custom_field_values'] as $cfv) {
-                $fieldName = strtolower($cfv['custom_field_name'] ?? $cfv['name'] ?? '');
-                if (in_array($fieldName, ['category', 'categories'])) {
-                    $category = $cfv['value'] ?? $cfv['text_value'] ?? $category;
-                    break;
-                }
-            }
-        }
-
-        $revenue = floatval(getFieldValue($project, $revenuePaths, 0));
-        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $revenue;
+    if (array_sum($categoryRevenue) > 0) {
+        arsort($categoryRevenue);
+        $analytics['charts']['category_revenue'] = [
+            'labels' => array_keys($categoryRevenue),
+            'values' => array_values($categoryRevenue),
+        ];
     }
-
-    arsort($categoryRevenue);
-
-    $analytics['charts']['category_revenue'] = [
-        'labels' => array_keys($categoryRevenue),
-        'values' => array_values($categoryRevenue),
-    ];
-} catch (Exception $e) {
-    $analytics['charts']['category_revenue'] = ['labels' => [], 'values' => []];
 }
 
-// Chart: Opportunity Types/Categories
-try {
+// Chart: Opportunity Types
+if ($allActiveOpps) {
     $oppTypes = [];
-    $oppsWithTypes = $api->get('opportunities', [
-        'per_page' => 100,
-    ]);
 
-    foreach ($oppsWithTypes['opportunities'] ?? [] as $opp) {
-        // Try custom fields first
-        $type = getFieldValue($opp, [
-            ['custom_fields', 'category'],
-            ['custom_fields', 'type'],
-            ['custom_fields', 'opportunity_type'],
-            'opportunity_type',
-            'booking_type',
-        ], null);
+    foreach ($allActiveOpps['opportunities'] ?? [] as $opp) {
+        $type = 'Other';
 
         // Check custom field values
-        if ($type === null && isset($opp['custom_field_values']) && is_array($opp['custom_field_values'])) {
+        if (isset($opp['custom_field_values']) && is_array($opp['custom_field_values'])) {
             foreach ($opp['custom_field_values'] as $cfv) {
                 $fieldName = strtolower($cfv['custom_field_name'] ?? $cfv['name'] ?? '');
                 if (in_array($fieldName, ['category', 'categories', 'type', 'opportunity type', 'booking type'])) {
-                    $type = $cfv['value'] ?? $cfv['text_value'] ?? null;
+                    $type = $cfv['value'] ?? $cfv['text_value'] ?? $type;
                     break;
                 }
             }
-        }
-
-        if ($type === null) {
-            $type = 'Other';
         }
 
         $oppTypes[$type] = ($oppTypes[$type] ?? 0) + 1;
@@ -519,42 +398,16 @@ try {
         'labels' => array_keys($oppTypes),
         'values' => array_values($oppTypes),
     ];
-} catch (Exception $e) {
-    $analytics['charts']['opportunity_types'] = ['labels' => [], 'values' => []];
 }
 
-// Timeline: Recent Activity
-try {
+// Timeline: Recent Activity (simplified)
+$recentOpps = safeApiCall($api, 'opportunities', [
+    'per_page' => 10,
+    'q[s]' => 'created_at desc',
+]);
+
+if ($recentOpps) {
     $timeline = [];
-
-    // Recent invoices
-    $recentInvoices = $api->get('invoices', [
-        'per_page' => 5,
-        'q[s]' => 'created_at desc',
-    ]);
-
-    foreach ($recentInvoices['invoices'] ?? [] as $inv) {
-        $memberName = getFieldValue($inv, [
-            ['member', 'name'],
-            'member_name',
-            ['billing_address', 'name'],
-        ], 'Unknown');
-
-        $total = getFieldValue($inv, $invoiceTotalPaths, 0);
-
-        $timeline[] = [
-            'date' => $inv['created_at'] ?? $inv['invoice_date'] ?? date('Y-m-d'),
-            'title' => 'Invoice #' . ($inv['number'] ?? $inv['id'] ?? '?') . ' - ' . ucfirst($inv['state'] ?? 'created'),
-            'description' => $memberName . ' - ' . formatCurrency($total),
-            'type' => 'invoice',
-        ];
-    }
-
-    // Recent opportunities
-    $recentOpps = $api->get('opportunities', [
-        'per_page' => 5,
-        'q[s]' => 'created_at desc',
-    ]);
 
     foreach ($recentOpps['opportunities'] ?? [] as $opp) {
         $memberName = getFieldValue($opp, [
@@ -571,14 +424,7 @@ try {
         ];
     }
 
-    // Sort timeline by date
-    usort($timeline, function($a, $b) {
-        return strtotime($b['date']) - strtotime($a['date']);
-    });
-
-    $analytics['timeline'] = array_slice($timeline, 0, 10);
-} catch (Exception $e) {
-    $analytics['timeline'] = [];
+    $analytics['timeline'] = $timeline;
 }
 
 // Available widgets for customization
@@ -586,7 +432,7 @@ $analytics['available_widgets'] = [
     'kpis' => [
         ['id' => 'revenue', 'label' => 'Total Revenue', 'type' => 'stat'],
         ['id' => 'opportunities', 'label' => 'Active Opportunities', 'type' => 'stat'],
-        ['id' => 'customers', 'label' => 'New Customers', 'type' => 'stat'],
+        ['id' => 'projects', 'label' => 'Active Projects', 'type' => 'stat'],
         ['id' => 'utilisation', 'label' => 'Product Utilisation', 'type' => 'stat'],
     ],
     'charts' => [
