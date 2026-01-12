@@ -176,12 +176,12 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                     <label for="widget-customer_segments">Customer Segments</label>
                                 </div>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-project_categories" checked onchange="toggleWidget('project_categories')">
-                                    <label for="widget-project_categories">Projects by Category</label>
+                                    <input type="checkbox" id="widget-projects_by_category" checked onchange="toggleWidget('projects_by_category')">
+                                    <label for="widget-projects_by_category">Projects by Category</label>
                                 </div>
                                 <div class="widget-option">
-                                    <input type="checkbox" id="widget-category_revenue" checked onchange="toggleWidget('category_revenue')">
-                                    <label for="widget-category_revenue">Revenue by Category</label>
+                                    <input type="checkbox" id="widget-revenue_by_category" checked onchange="toggleWidget('revenue_by_category')">
+                                    <label for="widget-revenue_by_category">Revenue by Category</label>
                                 </div>
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-opportunity_types" checked onchange="toggleWidget('opportunity_types')">
@@ -308,7 +308,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
 
                 <!-- Charts Row 3 - Project Categories -->
                 <div class="chart-row">
-                    <div class="card" data-widget="project_categories">
+                    <div class="card" data-widget="projects_by_category">
                         <div class="card-header">
                             <h3 class="card-title">Projects by Category</h3>
                         </div>
@@ -319,7 +319,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                         </div>
                     </div>
 
-                    <div class="card" data-widget="category_revenue">
+                    <div class="card" data-widget="revenue_by_category">
                         <div class="card-header">
                             <h3 class="card-title">Revenue by Project Category</h3>
                         </div>
@@ -652,16 +652,16 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 }
             }
 
-            // Project Categories
-            if (chartsData.project_categories && chartsData.project_categories.labels.length > 0) {
+            // Project Categories (uses projects_by_category from API)
+            if (chartsData.projects_by_category && chartsData.projects_by_category.labels.length > 0) {
                 const ctx = document.getElementById('chart-project-categories');
                 if (ctx) {
                     charts.projectCategories = new Chart(ctx, {
-                        type: 'pie',
+                        type: 'doughnut',
                         data: {
-                            labels: chartsData.project_categories.labels,
+                            labels: chartsData.projects_by_category.labels,
                             datasets: [{
-                                data: chartsData.project_categories.values,
+                                data: chartsData.projects_by_category.values,
                                 backgroundColor: chartColors
                             }]
                         },
@@ -679,17 +679,17 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 }
             }
 
-            // Category Revenue
-            if (chartsData.category_revenue && chartsData.category_revenue.labels.length > 0) {
+            // Revenue by Category (uses revenue_by_category from API)
+            if (chartsData.revenue_by_category && chartsData.revenue_by_category.labels.length > 0) {
                 const ctx = document.getElementById('chart-category-revenue');
                 if (ctx) {
                     charts.categoryRevenue = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: chartsData.category_revenue.labels,
+                            labels: chartsData.revenue_by_category.labels,
                             datasets: [{
                                 label: 'Revenue',
-                                data: chartsData.category_revenue.values,
+                                data: chartsData.revenue_by_category.values,
                                 backgroundColor: chartColors
                             }]
                         },

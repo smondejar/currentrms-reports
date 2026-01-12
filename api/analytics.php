@@ -101,24 +101,21 @@ $analytics = [
         'opp_status' => ['labels' => [], 'values' => []],
         'top_products' => ['labels' => [], 'values' => []],
         'customer_segments' => ['labels' => [], 'values' => []],
-        'project_categories' => ['labels' => [], 'values' => []],
-        'category_revenue' => ['labels' => [], 'values' => []],
-        'opportunity_types' => ['labels' => [], 'values' => []],
+        'projects_by_category' => ['labels' => [], 'values' => []],
+        'revenue_by_category' => ['labels' => [], 'values' => []],
     ],
     'timeline' => [],
     'debug' => [],
 ];
 
-// CurrentRMS field paths for totals
+// CurrentRMS field paths for totals (top-level fields based on actual API response)
 $oppTotalPaths = [
-    'rental_charge_total',
-    'sale_charge_total',
-    'charge_total',
-    'total',
-    'billing_total',
-    'grand_total',
-    ['totals', 'charge_total'],
-    ['totals', 'grand_total'],
+    'charge_total',           // Primary field at top level
+    'rental_charge_total',    // Rental charges
+    'sale_charge_total',      // Sale charges
+    'service_charge_total',   // Service charges
+    'charge_including_tax_total',
+    'invoice_charge_total',
 ];
 
 // =====================
@@ -284,6 +281,80 @@ if ($oppsForRevenue) {
 }
 
 // =====================
+// Chart: Top Products by Revenue
+// =====================
+$opportunityItems = safeApiCall($api, 'opportunity_items', [
+    'per_page' => 200,
+    'q[opportunity_starts_at_gteq]' => $startDate,
+    'q[opportunity_starts_at_lteq]' => $endDate,
+]);
+
+if ($opportunityItems) {
+    $productRevenue = [];
+    foreach ($opportunityItems['opportunity_items'] ?? [] as $item) {
+        $productName = $item['product']['name'] ?? $item['name'] ?? 'Unknown Product';
+        $itemTotal = floatval($item['charge_total'] ?? $item['price_total'] ?? $item['total'] ?? 0);
+        $productRevenue[$productName] = ($productRevenue[$productName] ?? 0) + $itemTotal;
+    }
+
+    arsort($productRevenue);
+    $topProducts = array_slice($productRevenue, 0, 10, true);
+
+    $analytics['charts']['top_products'] = [
+        'labels' => array_keys($topProducts),
+        'values' => array_values($topProducts),
+    ];
+    $analytics['debug']['top_products_count'] = count($productRevenue);
+}
+
+// =====================
+// Chart: Projects by Category & Revenue by Category
+// =====================
+if ($projectsResponse) {
+    $categoryCount = [];
+    $categoryRevenue = [];
+
+    foreach ($projectsResponse['projects'] ?? [] as $project) {
+        // Get category from custom_fields
+        $category = $project['custom_fields']['category'] ??
+                    $project['category'] ??
+                    $project['project_type'] ??
+                    'Uncategorized';
+
+        // Count projects per category
+        $categoryCount[$category] = ($categoryCount[$category] ?? 0) + 1;
+
+        // Calculate project revenue from embedded opportunities
+        $projectRevenue = 0;
+        if (!empty($project['opportunities'])) {
+            foreach ($project['opportunities'] as $opp) {
+                $projectRevenue += floatval($opp['charge_total'] ?? 0);
+            }
+        }
+
+        // Sum revenue per category
+        $categoryRevenue[$category] = ($categoryRevenue[$category] ?? 0) + $projectRevenue;
+    }
+
+    // Sort by count for projects by category
+    arsort($categoryCount);
+    $analytics['charts']['projects_by_category'] = [
+        'labels' => array_keys($categoryCount),
+        'values' => array_values($categoryCount),
+    ];
+
+    // Sort by revenue for revenue by category
+    arsort($categoryRevenue);
+    $analytics['charts']['revenue_by_category'] = [
+        'labels' => array_keys($categoryRevenue),
+        'values' => array_values($categoryRevenue),
+    ];
+
+    $analytics['debug']['project_categories'] = $categoryCount;
+    $analytics['debug']['category_revenue'] = $categoryRevenue;
+}
+
+// =====================
 // Timeline: Recent Activity
 // =====================
 if ($oppsForRevenue) {
@@ -316,6 +387,9 @@ $analytics['available_widgets'] = [
         ['id' => 'revenue_trend', 'label' => 'Revenue Trend', 'type' => 'line'],
         ['id' => 'opp_status', 'label' => 'Opportunities by Status', 'type' => 'doughnut'],
         ['id' => 'customer_segments', 'label' => 'Customer Segments', 'type' => 'pie'],
+        ['id' => 'top_products', 'label' => 'Top Products by Revenue', 'type' => 'bar'],
+        ['id' => 'projects_by_category', 'label' => 'Projects by Category', 'type' => 'doughnut'],
+        ['id' => 'revenue_by_category', 'label' => 'Revenue by Category', 'type' => 'bar'],
     ],
 ];
 
