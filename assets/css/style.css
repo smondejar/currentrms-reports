@@ -844,11 +844,46 @@ select.form-control {
 .loading-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    gap: 16px;
+}
+
+.loading-overlay.hidden {
+    display: none;
+}
+
+.loading-overlay .spinner {
+    width: 48px;
+    height: 48px;
+    border-width: 4px;
+}
+
+.loading-overlay-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--gray-600);
+}
+
+.loading-overlay-subtext {
+    font-size: 13px;
+    color: var(--gray-400);
+}
+
+[data-theme="dark"] .loading-overlay {
+    background: rgba(17, 24, 39, 0.95);
+}
+
+[data-theme="dark"] .loading-overlay-text {
+    color: var(--gray-300);
+}
+
+[data-theme="dark"] .loading-overlay-subtext {
+    color: var(--gray-500);
 }
 
 /* Empty State */

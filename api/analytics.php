@@ -4,13 +4,21 @@
  * Fetches live analytics data from CurrentRMS
  */
 
+// Clean output buffer to ensure pure JSON response
+ob_start();
+
 require_once __DIR__ . '/../includes/bootstrap.php';
+
+// Clear any output from bootstrap
+ob_end_clean();
+ob_start();
 
 header('Content-Type: application/json');
 
 // Increase error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 // Check authentication
 if (!Auth::check()) {
@@ -446,4 +454,6 @@ $analytics['available_widgets'] = [
     ],
 ];
 
-echo json_encode($analytics);
+// Clear any error output and send clean JSON
+ob_end_clean();
+echo json_encode($analytics, JSON_UNESCAPED_UNICODE);

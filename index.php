@@ -78,15 +78,36 @@ if ($api) {
             'q[s]' => 'created_at desc'
         ]);
         $recentInvoices = $recentInvResponse['invoices'] ?? [];
+    } catch (Exception $e) {
+        // Silently fail for invoices table
+    }
 
-        // Calculate monthly revenue from recent invoices
+    try {
+        // Calculate monthly revenue from opportunities (more reliable than invoices)
+        $currentMonthStart = date('Y-m-01');
+        $currentMonthEnd = date('Y-m-t');
+        $monthlyOpps = $api->get('opportunities', [
+            'per_page' => 100,
+            'q[starts_at_gteq]' => $currentMonthStart,
+            'q[starts_at_lteq]' => $currentMonthEnd,
+        ]);
+
         $monthlyRevenue = 0;
-        $currentMonth = date('Y-m');
-        foreach ($recentInvResponse['invoices'] ?? [] as $inv) {
-            $invMonth = substr($inv['invoice_date'] ?? '', 0, 7);
-            if ($invMonth === $currentMonth) {
-                $monthlyRevenue += floatval($inv['total'] ?? 0);
+        foreach ($monthlyOpps['opportunities'] ?? [] as $opp) {
+            // Try multiple field paths for total value
+            $total = 0;
+            if (isset($opp['totals']['charge_total'])) {
+                $total = floatval($opp['totals']['charge_total']);
+            } elseif (isset($opp['totals']['grand_total'])) {
+                $total = floatval($opp['totals']['grand_total']);
+            } elseif (isset($opp['charge_total'])) {
+                $total = floatval($opp['charge_total']);
+            } elseif (isset($opp['grand_total'])) {
+                $total = floatval($opp['grand_total']);
+            } elseif (isset($opp['rental_charge_total'])) {
+                $total = floatval($opp['rental_charge_total']);
             }
+            $monthlyRevenue += $total;
         }
         $stats['revenue']['value'] = $monthlyRevenue;
     } catch (Exception $e) {
@@ -125,20 +146,41 @@ if ($api) {
     }
 
     try {
-        // Get revenue by month for bar chart
+        // Get revenue by month for bar chart (from opportunities - more reliable)
         $monthlyData = [];
-        $invForChart = $api->get('invoices', [
-            'per_page' => 100,
-            'q[s]' => 'invoice_date desc'
+        $oppsForChart = $api->get('opportunities', [
+            'per_page' => 200,
+            'q[starts_at_gteq]' => date('Y-m-d', strtotime('-6 months')),
+            'q[s]' => 'starts_at asc'
         ]);
-        foreach ($invForChart['invoices'] ?? [] as $inv) {
-            $month = date('M Y', strtotime($inv['invoice_date'] ?? 'now'));
-            $monthlyData[$month] = ($monthlyData[$month] ?? 0) + floatval($inv['total'] ?? 0);
+        foreach ($oppsForChart['opportunities'] ?? [] as $opp) {
+            $date = $opp['starts_at'] ?? $opp['created_at'] ?? null;
+            if ($date) {
+                $month = date('M Y', strtotime($date));
+                // Try multiple field paths for total value
+                $total = 0;
+                if (isset($opp['totals']['charge_total'])) {
+                    $total = floatval($opp['totals']['charge_total']);
+                } elseif (isset($opp['totals']['grand_total'])) {
+                    $total = floatval($opp['totals']['grand_total']);
+                } elseif (isset($opp['charge_total'])) {
+                    $total = floatval($opp['charge_total']);
+                } elseif (isset($opp['grand_total'])) {
+                    $total = floatval($opp['grand_total']);
+                } elseif (isset($opp['rental_charge_total'])) {
+                    $total = floatval($opp['rental_charge_total']);
+                }
+                $monthlyData[$month] = ($monthlyData[$month] ?? 0) + $total;
+            }
         }
-        // Get last 6 months
-        $monthlyData = array_slice(array_reverse($monthlyData), 0, 6);
-        $revenueData['labels'] = array_keys($monthlyData);
-        $revenueData['values'] = array_values($monthlyData);
+        // Ensure we have last 6 months in order
+        $orderedMonths = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = date('M Y', strtotime("-{$i} months"));
+            $orderedMonths[$month] = $monthlyData[$month] ?? 0;
+        }
+        $revenueData['labels'] = array_keys($orderedMonths);
+        $revenueData['values'] = array_values($orderedMonths);
     } catch (Exception $e) {
         // Silently fail for chart
     }

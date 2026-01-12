@@ -83,6 +83,13 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-overlay-text">Fetching Analytics Data</div>
+        <div class="loading-overlay-subtext">Please wait while we load your data from CurrentRMS...</div>
+    </div>
+
     <div class="app-layout">
         <?php include 'includes/partials/sidebar.php'; ?>
 
@@ -431,25 +438,55 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             });
         });
 
+        function showLoading(show = true) {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                if (show) {
+                    overlay.classList.remove('hidden');
+                } else {
+                    overlay.classList.add('hidden');
+                }
+            }
+        }
+
         async function loadAnalytics() {
             const days = document.getElementById('date-range')?.value || 30;
+            showLoading(true);
 
             try {
                 const response = await fetch(`api/analytics.php?days=${days}`);
-                const data = await response.json();
+
+                // Check if response is OK
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const text = await response.text();
+                console.log('Analytics raw response:', text.substring(0, 500));
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError, 'Response:', text.substring(0, 200));
+                    throw new Error('Invalid JSON response from server');
+                }
 
                 if (data.error) {
                     App.showNotification(data.error, 'error');
+                    showLoading(false);
                     return;
                 }
 
-                updateKPIs(data.kpis);
-                updateCharts(data.charts);
-                updateTimeline(data.timeline);
+                updateKPIs(data.kpis || {});
+                updateCharts(data.charts || {});
+                updateTimeline(data.timeline || []);
 
             } catch (error) {
                 console.error('Failed to load analytics:', error);
-                App.showNotification('Failed to load analytics data', 'error');
+                App.showNotification('Failed to load analytics: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
             }
         }
 
