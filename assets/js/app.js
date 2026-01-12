@@ -364,7 +364,8 @@ const ReportBuilder = {
         container.innerHTML = '<div class="spinner"></div>';
 
         try {
-            const response = await fetch(`api/modules.php?module=${module}&action=columns`);
+            // Fetch module details (includes columns and filters)
+            const response = await fetch(`api/modules.php?module=${module}&action=details`);
             const data = await response.json();
 
             if (data.error) {
@@ -373,6 +374,19 @@ const ReportBuilder = {
 
             // Store available columns for filters
             this.availableColumns = data.columns;
+
+            // Store filter configuration with options
+            this.filterConfig = {};
+            if (data.filters) {
+                data.filters.forEach(filter => {
+                    this.filterConfig[filter.key] = {
+                        label: filter.label,
+                        type: filter.type,
+                        predicates: filter.predicates,
+                        options: filter.options || []
+                    };
+                });
+            }
 
             container.innerHTML = data.columns.map(col => `
                 <label class="checkbox-item">
@@ -411,6 +425,9 @@ const ReportBuilder = {
             .map(cb => cb.value);
     },
 
+    // Store filter configuration for the current module
+    filterConfig: {},
+
     addFilter() {
         const filterContainer = document.getElementById('filter-list');
         if (!filterContainer) return;
@@ -421,15 +438,21 @@ const ReportBuilder = {
         }
 
         const filterId = Date.now();
-        const fieldOptions = this.availableColumns.map(col =>
-            `<option value="${col.key}">${col.label}</option>`
-        ).join('');
+
+        // Use filter config if available, otherwise use columns
+        const filterOptions = this.filterConfig && Object.keys(this.filterConfig).length > 0
+            ? Object.entries(this.filterConfig).map(([key, config]) =>
+                `<option value="${key}" data-type="${config.type}" data-options='${JSON.stringify(config.options || [])}'>${config.label}</option>`
+            ).join('')
+            : this.availableColumns.map(col =>
+                `<option value="${col.key}">${col.label}</option>`
+            ).join('');
 
         const filterHtml = `
             <div class="filter-row" data-filter-id="${filterId}" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-                <select class="form-control filter-field" style="flex: 1; min-width: 140px;">
+                <select class="form-control filter-field" style="flex: 1; min-width: 140px;" onchange="ReportBuilder.updateFilterValueInput(this)">
                     <option value="">Select field...</option>
-                    ${fieldOptions}
+                    ${filterOptions}
                 </select>
                 <select class="form-control filter-predicate" style="width: 130px;">
                     <option value="eq">Equals</option>
@@ -443,7 +466,9 @@ const ReportBuilder = {
                     <option value="null">Is empty</option>
                     <option value="not_null">Is not empty</option>
                 </select>
-                <input type="text" class="form-control filter-value" placeholder="Value" style="flex: 1; min-width: 120px;">
+                <div class="filter-value-container" style="flex: 1; min-width: 120px;">
+                    <input type="text" class="form-control filter-value" placeholder="Value">
+                </div>
                 <button type="button" class="btn btn-icon btn-danger remove-filter" style="flex-shrink: 0;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6L6 18M6 6l12 12"/>
@@ -459,6 +484,44 @@ const ReportBuilder = {
             .addEventListener('click', (e) => {
                 e.target.closest('.filter-row').remove();
             });
+    },
+
+    updateFilterValueInput(selectElement) {
+        const filterRow = selectElement.closest('.filter-row');
+        const valueContainer = filterRow.querySelector('.filter-value-container');
+        const selectedOption = selectElement.selectedOptions[0];
+
+        if (!selectedOption || !selectedOption.value) {
+            valueContainer.innerHTML = '<input type="text" class="form-control filter-value" placeholder="Value">';
+            return;
+        }
+
+        const fieldType = selectedOption.dataset.type || 'text';
+        let options = [];
+        try {
+            options = JSON.parse(selectedOption.dataset.options || '[]');
+        } catch (e) {
+            options = [];
+        }
+
+        let inputHtml = '';
+
+        if (fieldType === 'select' && options.length > 0) {
+            // Show dropdown for select fields
+            const optionHtml = options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+            inputHtml = `<select class="form-control filter-value">
+                <option value="">Select value...</option>
+                ${optionHtml}
+            </select>`;
+        } else if (fieldType === 'date') {
+            inputHtml = '<input type="date" class="form-control filter-value">';
+        } else if (fieldType === 'number') {
+            inputHtml = '<input type="number" class="form-control filter-value" placeholder="Value" step="any">';
+        } else {
+            inputHtml = '<input type="text" class="form-control filter-value" placeholder="Value">';
+        }
+
+        valueContainer.innerHTML = inputHtml;
     },
 
     getFilters() {

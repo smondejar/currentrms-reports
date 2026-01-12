@@ -74,7 +74,47 @@ switch ($action) {
             exit;
         }
 
+        $page = (int) ($_GET['page'] ?? $_POST['page'] ?? 1);
+        $perPage = (int) ($_GET['per_page'] ?? $_POST['per_page'] ?? 25);
+
         try {
+            // Check if this is a custom module
+            if (strpos($template['module'], 'custom:') === 0) {
+                // Handle custom modules by redirecting to their API
+                $customModule = substr($template['module'], 7); // Remove 'custom:' prefix
+                $customApiFile = __DIR__ . '/' . $customModule . '.php';
+
+                if (!file_exists($customApiFile)) {
+                    throw new Exception("Custom module API not found: {$customModule}");
+                }
+
+                // Include the custom API and let it handle the response
+                $_GET['page'] = $page;
+                $_GET['per_page'] = $perPage;
+
+                // Capture output from the custom API
+                ob_start();
+                include $customApiFile;
+                $output = ob_get_clean();
+
+                // Parse and re-output with template info
+                $customData = json_decode($output, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception("Custom module returned invalid JSON");
+                }
+
+                echo json_encode([
+                    'success' => true,
+                    'template' => $template,
+                    'data' => $customData['data'] ?? [],
+                    'meta' => $customData['meta'] ?? [],
+                    'columns' => $customData['columns'] ?? $template['columns'],
+                    'column_config' => $customData['column_config'] ?? [],
+                ]);
+                exit;
+            }
+
+            // Standard module handling
             $builder = new ReportBuilder($api);
             $builder->setModule($template['module']);
             $builder->setColumns($template['columns']);
@@ -84,8 +124,6 @@ switch ($action) {
                 $builder->setSorting($template['sorting']['field'], $template['sorting']['direction']);
             }
 
-            $page = (int) ($_GET['page'] ?? $_POST['page'] ?? 1);
-            $perPage = (int) ($_GET['per_page'] ?? $_POST['per_page'] ?? 25);
             $builder->setPagination($page, $perPage);
 
             $result = $builder->execute();
