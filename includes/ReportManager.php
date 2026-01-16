@@ -213,7 +213,7 @@ class ReportManager
     {
         $prefix = Database::getPrefix();
         $stmt = Database::query(
-            "UPDATE {$prefix}reports SET run_count = COALESCE(run_count, 0) + 1, last_run_at = NOW() WHERE id = ?",
+            "UPDATE {$prefix}reports SET run_count = COALESCE(run_count, 0) + 1 WHERE id = ?",
             [$id]
         );
         return $stmt->rowCount() > 0;
