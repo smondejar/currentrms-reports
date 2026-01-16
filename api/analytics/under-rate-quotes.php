@@ -1,8 +1,8 @@
 <?php
 /**
  * Under-Rate Quotes Report API
- * Returns opportunities where items are quoted below standard rates
- * Looks at ALL opportunity statuses and includes future opportunities
+ * Returns opportunities where items have discounts applied
+ * Uses CurrentRMS's built-in discount_percent field on opportunity items
  */
 
 ob_start();
@@ -35,9 +35,6 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // Build a product rate cache
-    $productRates = [];
-
     // Fetch ALL opportunities with items - no status filter
     // Filter by starts_at to get opportunities in our date range (past and future)
     $opportunities = $api->fetchAll('opportunities', [
@@ -45,125 +42,82 @@ try {
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
         'include[]' => 'opportunity_items',
-    ], 50); // Increased page limit to fetch more opportunities
+    ], 50);
 
     $underRateItems = [];
     $ownerSummary = [];
-    $productIdsToFetch = [];
 
-    // First pass: collect all product IDs we need to look up
-    foreach ($opportunities as $opp) {
-        $items = $opp['opportunity_items'] ?? [];
-        foreach ($items as $item) {
-            $productId = $item['product_id'] ?? null;
-            if ($productId && !isset($productRates[$productId])) {
-                $productIdsToFetch[$productId] = true;
-            }
-        }
-    }
-
-    // Fetch product rates in batches
-    $productIds = array_keys($productIdsToFetch);
-    foreach (array_chunk($productIds, 50) as $batch) {
-        foreach ($batch as $productId) {
-            try {
-                $productResponse = $api->get("products/{$productId}");
-                $product = $productResponse['product'] ?? $productResponse;
-
-                // Get standard rental rate from product
-                $standardRate = 0;
-                if (isset($product['rates']) && is_array($product['rates']) && count($product['rates']) > 0) {
-                    $standardRate = floatval($product['rates'][0]['price'] ?? 0);
-                } elseif (isset($product['rental_price'])) {
-                    $standardRate = floatval($product['rental_price']);
-                } elseif (isset($product['rate'])) {
-                    $standardRate = floatval($product['rate']);
-                }
-
-                $productRates[$productId] = [
-                    'name' => $product['name'] ?? 'Unknown Product',
-                    'standard_rate' => $standardRate,
-                    'product_group' => $product['product_group']['name'] ?? ($product['product_group_name'] ?? 'Uncategorized'),
-                ];
-            } catch (Exception $e) {
-                // Product might be deleted, skip it
-                $productRates[$productId] = null;
-            }
-        }
-    }
-
-    // Second pass: analyze items for under-rate quotes
+    // Analyze items for discounts using CurrentRMS's discount_percent field
     foreach ($opportunities as $opp) {
         $items = $opp['opportunity_items'] ?? [];
         $owner = $opp['owner']['name'] ?? ($opp['owner_name'] ?? 'Unknown Owner');
         $ownerId = $opp['owner_id'] ?? $opp['owner']['id'] ?? 0;
-        $oppStatus = $opp['status'] ?? $opp['state'] ?? 'Unknown';
+        $oppStatus = $opp['status_name'] ?? $opp['status'] ?? $opp['state'] ?? 'Unknown';
         $startsAt = $opp['starts_at'] ?? null;
+        $customer = $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? ($opp['subject'] ?? 'Unknown Customer'));
 
         foreach ($items as $item) {
-            $productId = $item['product_id'] ?? null;
-            if (!$productId || !isset($productRates[$productId]) || $productRates[$productId] === null) {
+            // Get discount percentage directly from the item
+            $discountPercent = floatval($item['discount_percent'] ?? 0);
+
+            // Skip items with no discount or below threshold
+            if ($discountPercent < $minDiscount) {
                 continue;
             }
 
-            $productInfo = $productRates[$productId];
-            $standardRate = $productInfo['standard_rate'];
-
-            // Skip items with no standard rate defined
-            if ($standardRate <= 0) {
+            // Skip group items (quantity = 0, they're just containers)
+            $quantity = floatval($item['quantity'] ?? 0);
+            if ($quantity <= 0) {
                 continue;
             }
 
-            // Get quoted rate - check multiple possible fields
-            $quotedRate = floatval($item['rate'] ?? $item['price'] ?? $item['charge'] ?? 0);
-            $quantity = intval($item['quantity'] ?? 1);
+            // Get price info
+            $price = floatval($item['price'] ?? 0);
+            $chargeTotal = floatval($item['charge_total'] ?? 0);
 
-            // Calculate discount percentage
-            if ($quotedRate < $standardRate) {
-                $discountAmount = $standardRate - $quotedRate;
-                $discountPercent = ($discountAmount / $standardRate) * 100;
-
-                // Only include if discount exceeds minimum threshold
-                if ($discountPercent >= $minDiscount) {
-                    $lostRevenue = $discountAmount * $quantity;
-
-                    $underRateItem = [
-                        'opportunity_id' => $opp['id'],
-                        'opportunity_subject' => $opp['subject'] ?? 'Opportunity #' . $opp['id'],
-                        'opportunity_status' => $oppStatus,
-                        'starts_at' => $startsAt,
-                        'owner' => $owner,
-                        'owner_id' => $ownerId,
-                        'customer' => $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? 'Unknown Customer'),
-                        'product_id' => $productId,
-                        'product_name' => $productInfo['name'],
-                        'product_group' => $productInfo['product_group'],
-                        'quantity' => $quantity,
-                        'standard_rate' => $standardRate,
-                        'quoted_rate' => $quotedRate,
-                        'discount_percent' => round($discountPercent, 1),
-                        'discount_amount' => round($discountAmount, 2),
-                        'lost_revenue' => round($lostRevenue, 2),
-                        'created_at' => $opp['created_at'] ?? null,
-                    ];
-
-                    $underRateItems[] = $underRateItem;
-
-                    // Update owner summary
-                    if (!isset($ownerSummary[$ownerId])) {
-                        $ownerSummary[$ownerId] = [
-                            'owner' => $owner,
-                            'total_items' => 0,
-                            'total_lost_revenue' => 0,
-                            'avg_discount' => 0,
-                            'discounts' => [],
-                        ];
-                    }
-                    $ownerSummary[$ownerId]['total_items']++;
-                    $ownerSummary[$ownerId]['total_lost_revenue'] += $lostRevenue;
-                    $ownerSummary[$ownerId]['discounts'][] = $discountPercent;
-                }
+            // Calculate lost revenue: price * quantity * (discount_percent / 100)
+            // Or: original charge - actual charge
+            $originalCharge = $price * $quantity;
+            $lostRevenue = $originalCharge - $chargeTotal;
+            if ($lostRevenue < 0) {
+                $lostRevenue = $originalCharge * ($discountPercent / 100);
             }
+
+            $itemName = $item['name'] ?? 'Unknown Item';
+
+            $underRateItem = [
+                'opportunity_id' => $opp['id'],
+                'opportunity_subject' => $opp['subject'] ?? 'Opportunity #' . $opp['id'],
+                'opportunity_status' => $oppStatus,
+                'starts_at' => $startsAt,
+                'owner' => $owner,
+                'owner_id' => $ownerId,
+                'customer' => $customer,
+                'item_id' => $item['id'] ?? null,
+                'item_name' => $itemName,
+                'quantity' => $quantity,
+                'price' => $price,
+                'charge_total' => $chargeTotal,
+                'discount_percent' => round($discountPercent, 1),
+                'lost_revenue' => round($lostRevenue, 2),
+                'created_at' => $opp['created_at'] ?? null,
+            ];
+
+            $underRateItems[] = $underRateItem;
+
+            // Update owner summary
+            if (!isset($ownerSummary[$ownerId])) {
+                $ownerSummary[$ownerId] = [
+                    'owner' => $owner,
+                    'total_items' => 0,
+                    'total_lost_revenue' => 0,
+                    'avg_discount' => 0,
+                    'discounts' => [],
+                ];
+            }
+            $ownerSummary[$ownerId]['total_items']++;
+            $ownerSummary[$ownerId]['total_lost_revenue'] += $lostRevenue;
+            $ownerSummary[$ownerId]['discounts'][] = $discountPercent;
         }
     }
 

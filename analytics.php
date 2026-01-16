@@ -1569,7 +1569,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             const container = document.getElementById('under-rate-items-table');
 
             if (!items || items.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No under-rate items found</p>';
+                container.innerHTML = '<p class="text-muted text-center">No discounted items found</p>';
                 return;
             }
 
@@ -1579,10 +1579,10 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                         <tr>
                             <th>Opportunity</th>
                             <th>Status / Date</th>
-                            <th>Product</th>
+                            <th>Item</th>
                             <th>Owner</th>
-                            <th style="text-align: right;">Standard</th>
-                            <th style="text-align: right;">Quoted</th>
+                            <th style="text-align: right;">Price</th>
+                            <th style="text-align: right;">Charged</th>
                             <th style="text-align: right;">Discount</th>
                             <th style="text-align: right;">Lost</th>
                         </tr>
@@ -1591,28 +1591,31 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             `;
 
             items.slice(0, 25).forEach(item => {
-                const discountClass = item.discount_percent >= 25 ? 'text-danger' : (item.discount_percent >= 15 ? 'text-warning' : '');
+                const discountClass = item.discount_percent >= 50 ? 'text-danger' : (item.discount_percent >= 25 ? 'text-warning' : '');
                 const startsAt = item.starts_at ? new Date(item.starts_at).toLocaleDateString() : '-';
                 const statusBadge = getStatusBadge(item.opportunity_status);
+                const itemName = item.item_name || item.product_name || 'Unknown';
+                const price = item.price || 0;
+                const chargeTotal = item.charge_total || 0;
                 html += `
                     <tr>
                         <td>
                             <a href="#" onclick="window.open('https://<?php echo e(config('currentrms.subdomain')); ?>.current-rms.com/opportunities/${item.opportunity_id}', '_blank'); return false;" style="font-weight: 500;">
                                 ${escapeHtml(item.opportunity_subject.substring(0, 30))}${item.opportunity_subject.length > 30 ? '...' : ''}
                             </a>
-                            <div style="font-size: 11px; color: var(--gray-500);">${escapeHtml(item.customer.substring(0, 25))}</div>
+                            <div style="font-size: 11px; color: var(--gray-500);">${escapeHtml((item.customer || '').substring(0, 25))}</div>
                         </td>
                         <td>
                             ${statusBadge}
                             <div style="font-size: 10px; color: var(--gray-500); margin-top: 2px;">${startsAt}</div>
                         </td>
                         <td>
-                            ${escapeHtml(item.product_name.substring(0, 25))}${item.product_name.length > 25 ? '...' : ''}
+                            ${escapeHtml(itemName.substring(0, 30))}${itemName.length > 30 ? '...' : ''}
                             <div style="font-size: 11px; color: var(--gray-500);">Qty: ${item.quantity}</div>
                         </td>
-                        <td style="font-size: 11px;">${escapeHtml(item.owner)}</td>
-                        <td style="text-align: right;">${currencySymbol}${item.standard_rate.toFixed(2)}</td>
-                        <td style="text-align: right;">${currencySymbol}${item.quoted_rate.toFixed(2)}</td>
+                        <td style="font-size: 11px;">${escapeHtml(item.owner || 'Unknown')}</td>
+                        <td style="text-align: right;">${currencySymbol}${price.toFixed(2)}</td>
+                        <td style="text-align: right;">${currencySymbol}${chargeTotal.toFixed(2)}</td>
                         <td style="text-align: right;" class="${discountClass}">
                             <strong>${item.discount_percent}%</strong>
                         </td>
