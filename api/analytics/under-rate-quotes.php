@@ -37,11 +37,13 @@ try {
 
     // Fetch ALL opportunities with items and owner - no status filter
     // Filter by starts_at to get opportunities in our date range (past and future)
+    // Note: We need to fetch opportunities first, then the API will include nested data
     $opportunities = $api->fetchAll('opportunities', [
         'per_page' => 100,
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
-        'include[]' => ['opportunity_items', 'owner'],
+        'include[]' => 'opportunity_items',
+        'include[1]' => 'owner',
     ], 50);
 
     $underRateItems = [];
