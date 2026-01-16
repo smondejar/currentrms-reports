@@ -213,7 +213,7 @@ try {
 
         } else {
             // Table widget - just return rows
-            $builder->setPage(1)->setPerPage($limit);
+            $builder->setPagination(1, $limit);
             $reportData = $builder->execute();
 
             // Clean buffer after fetch
