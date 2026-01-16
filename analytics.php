@@ -197,6 +197,27 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             border-radius: 4px;
             font-weight: 500;
         }
+        .badge-success {
+            background: var(--success-100, #d1fae5);
+            color: var(--success-700, #047857);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .badge-danger {
+            background: var(--danger-100, #fee2e2);
+            color: var(--danger-700, #b91c1c);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .badge-secondary {
+            background: var(--gray-200, #e5e7eb);
+            color: var(--gray-700, #374151);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
         [data-theme="dark"] .under-rate-owner-item {
             background: var(--gray-800) !important;
             border-color: var(--gray-700) !important;
@@ -581,7 +602,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     </div>
                     <div class="card-body">
                         <p class="text-muted" style="margin-bottom: 16px; font-size: 13px;">
-                            Identifies opportunity items quoted below standard product rates, grouped by opportunity owner.
+                            Identifies opportunity items quoted below standard product rates across <strong>all statuses</strong> (quotes, orders, etc.) - including future opportunities up to 1 year ahead.
                         </p>
 
                         <!-- Summary Cards -->
@@ -1468,8 +1489,10 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
         // ========================================
 
         async function loadUnderRateQuotes() {
-            const days = document.getElementById('date-range')?.value || 30;
             const minDiscount = document.getElementById('under-rate-min-discount')?.value || 10;
+            // Look back 90 days and forward 365 days to cover all active/upcoming opportunities
+            const pastDays = 90;
+            const futureDays = 365;
 
             // Show loading state
             document.getElementById('under-rate-total-items').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
@@ -1480,7 +1503,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             document.getElementById('under-rate-items-table').innerHTML = '<div class="text-center text-muted"><div class="spinner" style="width: 20px; height: 20px;"></div></div>';
 
             try {
-                const response = await fetch(`api/analytics/under-rate-quotes.php?days=${days}&min_discount=${minDiscount}`);
+                const response = await fetch(`api/analytics/under-rate-quotes.php?past_days=${pastDays}&future_days=${futureDays}&min_discount=${minDiscount}`);
                 const result = await response.json();
 
                 if (!result.success) {
@@ -1555,6 +1578,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     <thead>
                         <tr>
                             <th>Opportunity</th>
+                            <th>Status / Date</th>
                             <th>Product</th>
                             <th>Owner</th>
                             <th style="text-align: right;">Standard</th>
@@ -1568,6 +1592,8 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
 
             items.slice(0, 25).forEach(item => {
                 const discountClass = item.discount_percent >= 25 ? 'text-danger' : (item.discount_percent >= 15 ? 'text-warning' : '');
+                const startsAt = item.starts_at ? new Date(item.starts_at).toLocaleDateString() : '-';
+                const statusBadge = getStatusBadge(item.opportunity_status);
                 html += `
                     <tr>
                         <td>
@@ -1575,6 +1601,10 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                 ${escapeHtml(item.opportunity_subject.substring(0, 30))}${item.opportunity_subject.length > 30 ? '...' : ''}
                             </a>
                             <div style="font-size: 11px; color: var(--gray-500);">${escapeHtml(item.customer.substring(0, 25))}</div>
+                        </td>
+                        <td>
+                            ${statusBadge}
+                            <div style="font-size: 10px; color: var(--gray-500); margin-top: 2px;">${startsAt}</div>
                         </td>
                         <td>
                             ${escapeHtml(item.product_name.substring(0, 25))}${item.product_name.length > 25 ? '...' : ''}
@@ -1600,6 +1630,19 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             }
 
             container.innerHTML = html;
+        }
+
+        function getStatusBadge(status) {
+            const statusLower = (status || '').toLowerCase();
+            let badgeClass = 'badge-secondary';
+            if (statusLower.includes('confirmed') || statusLower.includes('order')) {
+                badgeClass = 'badge-success';
+            } else if (statusLower.includes('quote') || statusLower.includes('provisional')) {
+                badgeClass = 'badge-warning';
+            } else if (statusLower.includes('closed') || statusLower.includes('cancelled')) {
+                badgeClass = 'badge-danger';
+            }
+            return `<span class="badge ${badgeClass}" style="font-size: 10px;">${escapeHtml(status)}</span>`;
         }
 
         // Listen for min discount change

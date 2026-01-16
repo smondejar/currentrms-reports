@@ -2,6 +2,7 @@
 /**
  * Under-Rate Quotes Report API
  * Returns opportunities where items are quoted below standard rates
+ * Looks at ALL opportunity statuses and includes future opportunities
  */
 
 ob_start();
@@ -19,12 +20,17 @@ try {
         throw new Exception('API client not configured');
     }
 
-    // Get date range from request (default 30 days)
-    $days = intval($_GET['days'] ?? 30);
-    $days = max(7, min(365, $days));
+    // Get date range from request
+    // past_days: how many days back to look (default 90)
+    // future_days: how many days forward to look (default 365)
+    $pastDays = intval($_GET['past_days'] ?? $_GET['days'] ?? 90);
+    $pastDays = max(0, min(365, $pastDays));
 
-    $startDate = date('Y-m-d', strtotime("-{$days} days"));
-    $endDate = date('Y-m-d');
+    $futureDays = intval($_GET['future_days'] ?? 365);
+    $futureDays = max(0, min(730, $futureDays));
+
+    $startDate = date('Y-m-d', strtotime("-{$pastDays} days"));
+    $endDate = date('Y-m-d', strtotime("+{$futureDays} days"));
 
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
@@ -32,13 +38,14 @@ try {
     // Build a product rate cache
     $productRates = [];
 
-    // Fetch opportunities with items
+    // Fetch ALL opportunities with items - no status filter
+    // Filter by starts_at to get opportunities in our date range (past and future)
     $opportunities = $api->fetchAll('opportunities', [
         'per_page' => 100,
-        'q[created_at_gteq]' => $startDate,
-        'q[created_at_lteq]' => $endDate . ' 23:59:59',
+        'q[starts_at_gteq]' => $startDate,
+        'q[starts_at_lteq]' => $endDate . ' 23:59:59',
         'include[]' => 'opportunity_items',
-    ], 20);
+    ], 50); // Increased page limit to fetch more opportunities
 
     $underRateItems = [];
     $ownerSummary = [];
@@ -90,6 +97,8 @@ try {
         $items = $opp['opportunity_items'] ?? [];
         $owner = $opp['owner']['name'] ?? ($opp['owner_name'] ?? 'Unknown Owner');
         $ownerId = $opp['owner_id'] ?? $opp['owner']['id'] ?? 0;
+        $oppStatus = $opp['status'] ?? $opp['state'] ?? 'Unknown';
+        $startsAt = $opp['starts_at'] ?? null;
 
         foreach ($items as $item) {
             $productId = $item['product_id'] ?? null;
@@ -121,7 +130,8 @@ try {
                     $underRateItem = [
                         'opportunity_id' => $opp['id'],
                         'opportunity_subject' => $opp['subject'] ?? 'Opportunity #' . $opp['id'],
-                        'opportunity_status' => $opp['status'] ?? $opp['state'] ?? 'Unknown',
+                        'opportunity_status' => $oppStatus,
+                        'starts_at' => $startsAt,
                         'owner' => $owner,
                         'owner_id' => $ownerId,
                         'customer' => $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? 'Unknown Customer'),
@@ -196,10 +206,14 @@ try {
             ],
         ],
         'filters' => [
-            'days' => $days,
+            'past_days' => $pastDays,
+            'future_days' => $futureDays,
             'min_discount' => $minDiscount,
             'start_date' => $startDate,
             'end_date' => $endDate,
+        ],
+        'debug' => [
+            'total_opportunities_fetched' => count($opportunities),
         ],
     ]);
 
