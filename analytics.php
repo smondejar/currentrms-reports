@@ -1268,7 +1268,7 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 return;
             }
 
-            const columns = data.columns || Object.keys(data.data[0] || {});
+            const columns = (data.columns && data.columns.length > 0) ? data.columns : Object.keys(data.data[0] || {});
             const displayCols = columns.slice(0, 5); // Limit columns for widget
 
             let html = '<table class="table table-sm"><thead><tr>';
