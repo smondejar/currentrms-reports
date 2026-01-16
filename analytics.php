@@ -1098,8 +1098,8 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                 return `
                     <div class="card report-widget-card" id="widget-${widget.id}" data-widget-id="${widget.id}">
                         <div class="widget-actions">
-                            <button onclick="refreshReportWidget('${widget.id}')" title="Refresh">↻</button>
-                            <button onclick="removeReportWidget('${widget.id}')" title="Remove">×</button>
+                            <button type="button" class="widget-refresh-btn" data-widget-id="${widget.id}" title="Refresh">↻</button>
+                            <button type="button" class="widget-remove-btn" data-widget-id="${widget.id}" title="Remove">×</button>
                         </div>
                         <div class="card-header">
                             <h3 class="card-title">${escapeHtml(widget.reportName)}</h3>
@@ -1125,6 +1125,25 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     </div>
                 `;
             }).join('');
+
+            // Attach event listeners using event delegation
+            container.querySelectorAll('.widget-refresh-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const widgetId = this.getAttribute('data-widget-id');
+                    refreshReportWidget(widgetId);
+                });
+            });
+
+            container.querySelectorAll('.widget-remove-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const widgetId = this.getAttribute('data-widget-id');
+                    removeReportWidget(widgetId);
+                });
+            });
 
             // Load data for all widgets
             reportWidgets.forEach(loadReportWidgetData);

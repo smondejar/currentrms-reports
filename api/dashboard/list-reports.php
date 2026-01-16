@@ -4,9 +4,22 @@
  * Returns reports available for dashboard widgets
  */
 
+// Start output buffering to catch any errors
+ob_start();
+
+// Suppress display errors for JSON output
+$displayErrors = ini_get('display_errors');
+ini_set('display_errors', '0');
+
 require_once __DIR__ . '/../../includes/bootstrap.php';
 
+// Clear any buffered output (warnings, etc.)
+ob_end_clean();
+
 header('Content-Type: application/json');
+
+// Restore display errors setting
+ini_set('display_errors', $displayErrors);
 
 // Check authentication
 if (!Auth::check()) {

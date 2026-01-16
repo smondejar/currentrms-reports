@@ -4,9 +4,22 @@
  * Fetches saved report data formatted for dashboard widgets
  */
 
+// Start output buffering to catch any errors
+ob_start();
+
+// Suppress display errors for JSON output
+$displayErrors = ini_get('display_errors');
+ini_set('display_errors', '0');
+
 require_once __DIR__ . '/../../includes/bootstrap.php';
 
+// Clear any buffered output (warnings, etc.)
+ob_end_clean();
+
 header('Content-Type: application/json');
+
+// Restore display errors setting
+ini_set('display_errors', $displayErrors);
 
 // Check authentication
 if (!Auth::check()) {
@@ -86,9 +99,13 @@ try {
         'widget_type' => $widgetType,
     ];
 
+    // Buffer any output during data fetching
+    ob_start();
+
     if ($widgetType === 'stat_card') {
         // For stat cards, we need to aggregate a single value
         $data = $builder->fetchAll(1000);
+        ob_end_clean(); // Clear any warnings
 
         if ($aggregateField && !empty($data)) {
             $values = array_filter(array_column($data, $aggregateField), function($v) {
@@ -122,6 +139,7 @@ try {
     } elseif (in_array($widgetType, ['chart_bar', 'chart_line', 'chart_pie', 'chart_doughnut'])) {
         // For charts, we need to group and aggregate
         $data = $builder->fetchAll(1000);
+        ob_end_clean(); // Clear any warnings
 
         if ($groupByField && !empty($data)) {
             $grouped = [];
@@ -180,6 +198,7 @@ try {
         // Table widget - just return rows
         $builder->setPage(1)->setPerPage($limit);
         $reportData = $builder->execute();
+        ob_end_clean(); // Clear any warnings
 
         $result['data'] = $reportData['data'];
         $result['columns'] = $config['columns'] ?? [];
