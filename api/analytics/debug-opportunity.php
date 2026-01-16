@@ -19,10 +19,13 @@ try {
 
     $oppId = intval($_GET['id'] ?? 1394);
 
-    // Fetch the specific opportunity with items
+    // Fetch the specific opportunity with items and owner
     $oppResponse = $api->get("opportunities/{$oppId}", [
         'include[]' => 'opportunity_items',
     ]);
+
+    // Also try fetching with owner include separately to see what we get
+    $oppWithOwner = $api->get("opportunities/{$oppId}");
 
     $opp = $oppResponse['opportunity'] ?? $oppResponse;
 
@@ -82,17 +85,29 @@ try {
         ];
     }
 
+    // Get the opportunity without items to see all base fields
+    $oppBase = $oppWithOwner['opportunity'] ?? $oppWithOwner;
+
     echo json_encode([
         'success' => true,
         'opportunity' => [
             'id' => $opp['id'] ?? null,
             'subject' => $opp['subject'] ?? null,
             'status' => $opp['status'] ?? null,
+            'status_name' => $opp['status_name'] ?? null,
             'state' => $opp['state'] ?? null,
             'starts_at' => $opp['starts_at'] ?? null,
-            'owner' => $opp['owner']['name'] ?? ($opp['owner_name'] ?? null),
             'items_count' => count($items),
         ],
+        'owner_fields' => [
+            'owner' => $opp['owner'] ?? null,
+            'owner_id' => $opp['owner_id'] ?? null,
+            'owner_name' => $opp['owner_name'] ?? null,
+            'user_id' => $opp['user_id'] ?? null,
+            'assigned_to' => $opp['assigned_to'] ?? null,
+            'created_by' => $opp['created_by'] ?? null,
+        ],
+        'all_opportunity_keys' => array_keys($oppBase),
         'items' => $itemsDebug,
         // Show first raw item for full inspection
         'first_raw_item' => $items[0] ?? null,
