@@ -35,13 +35,13 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // Fetch ALL opportunities with items - no status filter
+    // Fetch ALL opportunities with items and owner - no status filter
     // Filter by starts_at to get opportunities in our date range (past and future)
     $opportunities = $api->fetchAll('opportunities', [
         'per_page' => 100,
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
-        'include[]' => 'opportunity_items',
+        'include[]' => ['opportunity_items', 'owner'],
     ], 50);
 
     $underRateItems = [];
