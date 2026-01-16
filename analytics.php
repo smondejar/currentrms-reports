@@ -168,6 +168,43 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             color: var(--gray-500);
             font-size: 14px;
         }
+        /* Under-Rate Quotes Styles */
+        #under-rate-summary .stat-card {
+            padding: 12px 16px;
+        }
+        #under-rate-summary .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        #under-rate-summary .stat-value {
+            font-size: 20px;
+        }
+        .under-rate-owners {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .text-danger {
+            color: var(--danger, #dc2626) !important;
+        }
+        .text-warning {
+            color: var(--warning, #d97706) !important;
+        }
+        .badge-warning {
+            background: var(--warning-100, #fef3c7);
+            color: var(--warning-700, #92400e);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        [data-theme="dark"] .under-rate-owner-item {
+            background: var(--gray-800) !important;
+            border-color: var(--gray-700) !important;
+        }
+        [data-theme="dark"] .under-rate-owner-item:first-child {
+            background: rgba(220, 38, 38, 0.1) !important;
+            border-color: rgba(220, 38, 38, 0.3) !important;
+        }
     </style>
 </head>
 <body>
@@ -328,6 +365,13 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                 <div class="widget-option">
                                     <input type="checkbox" id="widget-opportunity_types" checked onchange="toggleWidget('opportunity_types')">
                                     <label for="widget-opportunity_types">Opportunity Types</label>
+                                </div>
+                            </div>
+                            <div class="widget-panel-section">
+                                <h4>Static Reports</h4>
+                                <div class="widget-option">
+                                    <input type="checkbox" id="widget-under_rate_quotes" checked onchange="toggleWidget('under_rate_quotes')">
+                                    <label for="widget-under_rate_quotes">Under-Rate Quotes Analysis</label>
                                 </div>
                             </div>
                             <div class="widget-panel-section" id="saved-reports-section">
@@ -504,6 +548,100 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     </div>
                 </div>
 
+                <!-- Under-Rate Quotes Report -->
+                <div class="card" data-widget="under_rate_quotes" style="margin-bottom: 24px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            Under-Rate Quotes Analysis
+                        </h3>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                                Min Discount:
+                                <select id="under-rate-min-discount" class="form-control" style="width: 80px; padding: 4px 8px;">
+                                    <option value="5">5%</option>
+                                    <option value="10" selected>10%</option>
+                                    <option value="15">15%</option>
+                                    <option value="20">20%</option>
+                                    <option value="25">25%</option>
+                                </select>
+                            </label>
+                            <button class="btn btn-sm btn-secondary" onclick="loadUnderRateQuotes()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted" style="margin-bottom: 16px; font-size: 13px;">
+                            Identifies opportunity items quoted below standard product rates, grouped by opportunity owner.
+                        </p>
+
+                        <!-- Summary Cards -->
+                        <div id="under-rate-summary" class="stat-cards" style="margin-bottom: 20px;">
+                            <div class="stat-card" style="flex: 1; min-width: 150px;">
+                                <div class="stat-content">
+                                    <div class="stat-label">Total Items</div>
+                                    <div class="stat-value" id="under-rate-total-items">
+                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="flex: 1; min-width: 150px;">
+                                <div class="stat-content">
+                                    <div class="stat-label">Potential Lost Revenue</div>
+                                    <div class="stat-value text-danger" id="under-rate-lost-revenue">
+                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="flex: 1; min-width: 150px;">
+                                <div class="stat-content">
+                                    <div class="stat-label">Avg Discount</div>
+                                    <div class="stat-value" id="under-rate-avg-discount">
+                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="flex: 1; min-width: 150px;">
+                                <div class="stat-content">
+                                    <div class="stat-label">Owners Involved</div>
+                                    <div class="stat-value" id="under-rate-owners">
+                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Owner Summary -->
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                            <div>
+                                <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--gray-600);">By Owner</h4>
+                                <div id="under-rate-by-owner" class="under-rate-owner-list">
+                                    <div class="text-center text-muted">
+                                        <div class="spinner" style="width: 20px; height: 20px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--gray-600);">Top Under-Rate Items</h4>
+                                <div id="under-rate-items-table" style="overflow-x: auto;">
+                                    <div class="text-center text-muted">
+                                        <div class="spinner" style="width: 20px; height: 20px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Report Widgets Container -->
                 <div id="report-widgets-container" class="chart-row" style="display: none;">
                     <!-- Dynamic report widgets will be added here -->
@@ -584,7 +722,10 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             loadAnalytics();
 
             // Reload when date range changes
-            document.getElementById('date-range')?.addEventListener('change', loadAnalytics);
+            document.getElementById('date-range')?.addEventListener('change', function() {
+                loadAnalytics();
+                loadUnderRateQuotes();
+            });
 
             // Widget panel toggle
             document.getElementById('widget-config-toggle')?.addEventListener('click', function(e) {
@@ -1322,10 +1463,153 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             }
         });
 
+        // ========================================
+        // Under-Rate Quotes Report Functions
+        // ========================================
+
+        async function loadUnderRateQuotes() {
+            const days = document.getElementById('date-range')?.value || 30;
+            const minDiscount = document.getElementById('under-rate-min-discount')?.value || 10;
+
+            // Show loading state
+            document.getElementById('under-rate-total-items').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
+            document.getElementById('under-rate-lost-revenue').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
+            document.getElementById('under-rate-avg-discount').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
+            document.getElementById('under-rate-owners').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
+            document.getElementById('under-rate-by-owner').innerHTML = '<div class="text-center text-muted"><div class="spinner" style="width: 20px; height: 20px;"></div></div>';
+            document.getElementById('under-rate-items-table').innerHTML = '<div class="text-center text-muted"><div class="spinner" style="width: 20px; height: 20px;"></div></div>';
+
+            try {
+                const response = await fetch(`api/analytics/under-rate-quotes.php?days=${days}&min_discount=${minDiscount}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load data');
+                }
+
+                const data = result.data;
+                const totals = data.totals;
+
+                // Update summary cards
+                document.getElementById('under-rate-total-items').textContent = totals.total_items.toLocaleString();
+                document.getElementById('under-rate-lost-revenue').textContent = currencySymbol + totals.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('under-rate-avg-discount').textContent = totals.avg_discount + '%';
+                document.getElementById('under-rate-owners').textContent = totals.unique_owners.toLocaleString();
+
+                // Render owner summary
+                renderUnderRateByOwner(data.owner_summary);
+
+                // Render items table
+                renderUnderRateItems(data.items);
+
+            } catch (error) {
+                console.error('Failed to load under-rate quotes:', error);
+                document.getElementById('under-rate-total-items').textContent = '-';
+                document.getElementById('under-rate-lost-revenue').textContent = '-';
+                document.getElementById('under-rate-avg-discount').textContent = '-';
+                document.getElementById('under-rate-owners').textContent = '-';
+                document.getElementById('under-rate-by-owner').innerHTML = `<p class="text-muted">Error: ${escapeHtml(error.message)}</p>`;
+                document.getElementById('under-rate-items-table').innerHTML = '';
+            }
+        }
+
+        function renderUnderRateByOwner(owners) {
+            const container = document.getElementById('under-rate-by-owner');
+
+            if (!owners || owners.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No under-rate quotes found</p>';
+                return;
+            }
+
+            let html = '<div class="under-rate-owners">';
+            owners.forEach((owner, index) => {
+                const bgColor = index === 0 ? 'var(--danger-50, #fef2f2)' : 'var(--gray-50)';
+                const borderColor = index === 0 ? 'var(--danger-200, #fecaca)' : 'var(--gray-200)';
+                html += `
+                    <div class="under-rate-owner-item" style="padding: 10px; margin-bottom: 8px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="font-size: 13px;">${escapeHtml(owner.owner)}</strong>
+                            <span class="badge badge-warning" style="font-size: 11px;">${owner.total_items} items</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--gray-600);">
+                            <span>Lost: <strong class="text-danger">${currencySymbol}${owner.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong></span>
+                            <span>Avg: <strong>${owner.avg_discount}%</strong> off</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderUnderRateItems(items) {
+            const container = document.getElementById('under-rate-items-table');
+
+            if (!items || items.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No under-rate items found</p>';
+                return;
+            }
+
+            let html = `
+                <table class="table table-sm" style="font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th>Opportunity</th>
+                            <th>Product</th>
+                            <th>Owner</th>
+                            <th style="text-align: right;">Standard</th>
+                            <th style="text-align: right;">Quoted</th>
+                            <th style="text-align: right;">Discount</th>
+                            <th style="text-align: right;">Lost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            items.slice(0, 25).forEach(item => {
+                const discountClass = item.discount_percent >= 25 ? 'text-danger' : (item.discount_percent >= 15 ? 'text-warning' : '');
+                html += `
+                    <tr>
+                        <td>
+                            <a href="#" onclick="window.open('https://<?php echo e(config('currentrms.subdomain')); ?>.current-rms.com/opportunities/${item.opportunity_id}', '_blank'); return false;" style="font-weight: 500;">
+                                ${escapeHtml(item.opportunity_subject.substring(0, 30))}${item.opportunity_subject.length > 30 ? '...' : ''}
+                            </a>
+                            <div style="font-size: 11px; color: var(--gray-500);">${escapeHtml(item.customer.substring(0, 25))}</div>
+                        </td>
+                        <td>
+                            ${escapeHtml(item.product_name.substring(0, 25))}${item.product_name.length > 25 ? '...' : ''}
+                            <div style="font-size: 11px; color: var(--gray-500);">Qty: ${item.quantity}</div>
+                        </td>
+                        <td style="font-size: 11px;">${escapeHtml(item.owner)}</td>
+                        <td style="text-align: right;">${currencySymbol}${item.standard_rate.toFixed(2)}</td>
+                        <td style="text-align: right;">${currencySymbol}${item.quoted_rate.toFixed(2)}</td>
+                        <td style="text-align: right;" class="${discountClass}">
+                            <strong>${item.discount_percent}%</strong>
+                        </td>
+                        <td style="text-align: right;" class="text-danger">
+                            ${currencySymbol}${item.lost_revenue.toFixed(2)}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+
+            if (items.length > 25) {
+                html += `<div class="text-muted text-center" style="font-size: 11px; margin-top: 8px;">Showing 25 of ${items.length} items</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Listen for min discount change
+        document.getElementById('under-rate-min-discount')?.addEventListener('change', loadUnderRateQuotes);
+
         // Initialize report widgets on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadSavedReports();
             loadReportWidgets();
+            loadUnderRateQuotes();
         });
     </script>
 </body>
