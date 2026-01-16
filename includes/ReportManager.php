@@ -205,4 +205,44 @@ class ReportManager
 
         return $reports;
     }
+
+    /**
+     * Increment the run count for a report
+     */
+    public static function incrementRunCount(int $id): bool
+    {
+        $prefix = Database::getPrefix();
+        return Database::execute(
+            "UPDATE {$prefix}reports SET run_count = COALESCE(run_count, 0) + 1, last_run_at = NOW() WHERE id = ?",
+            [$id]
+        ) > 0;
+    }
+
+    /**
+     * Get reports suitable for widgets (with minimal data)
+     */
+    public static function getForWidgets(int $userId, bool $isAdmin = false): array
+    {
+        $prefix = Database::getPrefix();
+
+        if ($isAdmin) {
+            $reports = Database::fetchAll(
+                "SELECT r.id, r.name, r.module, r.description, r.is_public, r.user_id, u.name as user_name
+                 FROM {$prefix}reports r
+                 LEFT JOIN {$prefix}users u ON r.user_id = u.id
+                 ORDER BY r.name ASC"
+            );
+        } else {
+            $reports = Database::fetchAll(
+                "SELECT r.id, r.name, r.module, r.description, r.is_public, r.user_id, u.name as user_name
+                 FROM {$prefix}reports r
+                 LEFT JOIN {$prefix}users u ON r.user_id = u.id
+                 WHERE r.user_id = ? OR r.is_public = 1
+                 ORDER BY r.name ASC",
+                [$userId]
+            );
+        }
+
+        return $reports;
+    }
 }

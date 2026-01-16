@@ -80,6 +80,94 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             background: #1f2937;
             border-color: #374151;
         }
+        /* Report Widget Modal */
+        .report-widget-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .report-widget-modal.active {
+            display: flex;
+        }
+        .report-widget-modal-content {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+        }
+        .report-widget-modal h3 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+        }
+        .report-widget-modal .form-group {
+            margin-bottom: 16px;
+        }
+        .report-widget-modal label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .report-widget-modal select,
+        .report-widget-modal input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            background: var(--gray-50);
+        }
+        .report-widget-modal .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        [data-theme="dark"] .report-widget-modal-content {
+            background: #1f2937;
+        }
+        /* Report widget card */
+        .report-widget-card {
+            position: relative;
+        }
+        .report-widget-card .widget-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        .report-widget-card .widget-actions button {
+            background: var(--gray-100);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .report-widget-card .widget-actions button:hover {
+            background: var(--gray-200);
+        }
+        .widget-stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 20px 0;
+        }
+        .widget-stat-label {
+            color: var(--gray-500);
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -88,6 +176,60 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
         <div class="spinner"></div>
         <div class="loading-overlay-text">Fetching Analytics Data</div>
         <div class="loading-overlay-subtext">Please wait while we load your data from CurrentRMS...</div>
+    </div>
+
+    <!-- Report Widget Modal -->
+    <div class="report-widget-modal" id="report-widget-modal">
+        <div class="report-widget-modal-content">
+            <h3>Add Report Widget</h3>
+            <form id="report-widget-form">
+                <div class="form-group">
+                    <label for="widget-report-id">Select Report</label>
+                    <select id="widget-report-id" required>
+                        <option value="">Loading reports...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="widget-type">Widget Type</label>
+                    <select id="widget-type" required>
+                        <option value="stat_card">Stat Card (Single Value)</option>
+                        <option value="chart_bar">Bar Chart</option>
+                        <option value="chart_line">Line Chart</option>
+                        <option value="chart_pie">Pie Chart</option>
+                        <option value="chart_doughnut">Doughnut Chart</option>
+                        <option value="table">Data Table</option>
+                    </select>
+                </div>
+                <div class="form-group" id="widget-aggregate-field-group" style="display: none;">
+                    <label for="widget-aggregate-field">Value Field (for aggregation)</label>
+                    <input type="text" id="widget-aggregate-field" placeholder="e.g., rental_charge_total">
+                    <small class="text-muted">Field to aggregate (sum, count, etc.)</small>
+                </div>
+                <div class="form-group" id="widget-group-by-group" style="display: none;">
+                    <label for="widget-group-by">Group By Field</label>
+                    <input type="text" id="widget-group-by" placeholder="e.g., status_name">
+                    <small class="text-muted">Field to group data by</small>
+                </div>
+                <div class="form-group" id="widget-aggregate-func-group" style="display: none;">
+                    <label for="widget-aggregate-func">Aggregation Function</label>
+                    <select id="widget-aggregate-func">
+                        <option value="sum">Sum</option>
+                        <option value="count">Count</option>
+                        <option value="avg">Average</option>
+                        <option value="min">Minimum</option>
+                        <option value="max">Maximum</option>
+                    </select>
+                </div>
+                <div class="form-group" id="widget-limit-group" style="display: none;">
+                    <label for="widget-limit">Limit Results</label>
+                    <input type="number" id="widget-limit" value="10" min="1" max="100">
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="closeReportWidgetModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Widget</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="app-layout">
@@ -187,6 +329,22 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                                     <input type="checkbox" id="widget-opportunity_types" checked onchange="toggleWidget('opportunity_types')">
                                     <label for="widget-opportunity_types">Opportunity Types</label>
                                 </div>
+                            </div>
+                            <div class="widget-panel-section" id="saved-reports-section">
+                                <h4>Saved Reports</h4>
+                                <div id="saved-reports-list">
+                                    <div class="text-muted" style="font-size: 12px;">Loading reports...</div>
+                                </div>
+                            </div>
+                            <div class="widget-panel-section">
+                                <button class="btn btn-sm btn-primary" style="width: 100%;" onclick="addReportWidget()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="12" y1="8" x2="12" y2="16"/>
+                                        <line x1="8" y1="12" x2="16" y2="12"/>
+                                    </svg>
+                                    Add Report Widget
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -344,6 +502,11 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Report Widgets Container -->
+                <div id="report-widgets-container" class="chart-row" style="display: none;">
+                    <!-- Dynamic report widgets will be added here -->
                 </div>
 
                 <!-- Recent Activity -->
@@ -773,6 +936,378 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Report Widget Functions
+        let savedReports = [];
+        let reportWidgets = [];
+        let reportWidgetCharts = {};
+
+        // Load saved reports for widget selection
+        async function loadSavedReports() {
+            try {
+                const response = await fetch('api/dashboard/list-reports.php');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('saved-reports-list').innerHTML =
+                        '<div class="text-muted" style="font-size: 12px;">Failed to load reports</div>';
+                    return;
+                }
+
+                savedReports = data.reports || [];
+
+                // Update the saved reports list in widget panel
+                const listContainer = document.getElementById('saved-reports-list');
+                if (savedReports.length === 0) {
+                    listContainer.innerHTML = '<div class="text-muted" style="font-size: 12px;">No saved reports yet</div>';
+                } else {
+                    listContainer.innerHTML = savedReports.slice(0, 5).map(report => `
+                        <div class="widget-option" style="font-size: 13px;">
+                            <span style="flex: 1;">${escapeHtml(report.name)}</span>
+                            <button type="button" class="btn btn-xs" onclick="quickAddReportWidget(${report.id})" title="Add as widget">+</button>
+                        </div>
+                    `).join('');
+                }
+
+                // Update the modal select
+                const select = document.getElementById('widget-report-id');
+                select.innerHTML = '<option value="">Select a report...</option>' +
+                    savedReports.map(r => `<option value="${r.id}" data-module="${r.module}">${escapeHtml(r.name)} (${r.module})</option>`).join('');
+
+            } catch (error) {
+                console.error('Failed to load saved reports:', error);
+                document.getElementById('saved-reports-list').innerHTML =
+                    '<div class="text-muted" style="font-size: 12px;">Failed to load reports</div>';
+            }
+        }
+
+        // Load saved widgets from localStorage
+        function loadReportWidgets() {
+            const saved = localStorage.getItem('reportWidgets');
+            if (saved) {
+                try {
+                    reportWidgets = JSON.parse(saved);
+                    renderReportWidgets();
+                } catch (e) {
+                    reportWidgets = [];
+                }
+            }
+        }
+
+        function saveReportWidgets() {
+            localStorage.setItem('reportWidgets', JSON.stringify(reportWidgets));
+        }
+
+        // Quick add a report widget with default settings
+        function quickAddReportWidget(reportId) {
+            const report = savedReports.find(r => r.id === reportId);
+            if (!report) return;
+
+            const widget = {
+                id: 'rw_' + Date.now(),
+                reportId: reportId,
+                reportName: report.name,
+                type: 'stat_card',
+                aggregateField: '',
+                groupBy: '',
+                aggregateFunc: 'count',
+                limit: 10
+            };
+
+            reportWidgets.push(widget);
+            saveReportWidgets();
+            renderReportWidgets();
+            loadReportWidgetData(widget);
+            App.showNotification('Widget added', 'success');
+        }
+
+        // Open modal to add report widget
+        function addReportWidget() {
+            document.getElementById('widget-panel').classList.remove('active');
+            document.getElementById('report-widget-modal').classList.add('active');
+            updateModalFields();
+        }
+
+        function closeReportWidgetModal() {
+            document.getElementById('report-widget-modal').classList.remove('active');
+            document.getElementById('report-widget-form').reset();
+        }
+
+        // Show/hide fields based on widget type
+        function updateModalFields() {
+            const type = document.getElementById('widget-type').value;
+            const isChart = type.startsWith('chart_');
+            const isStatCard = type === 'stat_card';
+            const isTable = type === 'table';
+
+            document.getElementById('widget-aggregate-field-group').style.display = (isChart || isStatCard) ? 'block' : 'none';
+            document.getElementById('widget-group-by-group').style.display = isChart ? 'block' : 'none';
+            document.getElementById('widget-aggregate-func-group').style.display = (isChart || isStatCard) ? 'block' : 'none';
+            document.getElementById('widget-limit-group').style.display = (isChart || isTable) ? 'block' : 'none';
+        }
+
+        // Handle widget type change
+        document.getElementById('widget-type')?.addEventListener('change', updateModalFields);
+
+        // Handle form submission
+        document.getElementById('report-widget-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const reportId = parseInt(document.getElementById('widget-report-id').value);
+            const report = savedReports.find(r => r.id === reportId);
+            if (!report) {
+                App.showNotification('Please select a report', 'error');
+                return;
+            }
+
+            const widget = {
+                id: 'rw_' + Date.now(),
+                reportId: reportId,
+                reportName: report.name,
+                type: document.getElementById('widget-type').value,
+                aggregateField: document.getElementById('widget-aggregate-field').value,
+                groupBy: document.getElementById('widget-group-by').value,
+                aggregateFunc: document.getElementById('widget-aggregate-func').value,
+                limit: parseInt(document.getElementById('widget-limit').value) || 10
+            };
+
+            reportWidgets.push(widget);
+            saveReportWidgets();
+            closeReportWidgetModal();
+            renderReportWidgets();
+            loadReportWidgetData(widget);
+            App.showNotification('Widget added', 'success');
+        });
+
+        // Render all report widgets
+        function renderReportWidgets() {
+            const container = document.getElementById('report-widgets-container');
+            if (!container) return;
+
+            if (reportWidgets.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'grid';
+            container.innerHTML = reportWidgets.map(widget => {
+                const isChart = widget.type.startsWith('chart_');
+                const isTable = widget.type === 'table';
+                const isStatCard = widget.type === 'stat_card';
+
+                return `
+                    <div class="card report-widget-card" id="widget-${widget.id}" data-widget-id="${widget.id}">
+                        <div class="widget-actions">
+                            <button onclick="refreshReportWidget('${widget.id}')" title="Refresh">↻</button>
+                            <button onclick="removeReportWidget('${widget.id}')" title="Remove">×</button>
+                        </div>
+                        <div class="card-header">
+                            <h3 class="card-title">${escapeHtml(widget.reportName)}</h3>
+                        </div>
+                        <div class="card-body">
+                            ${isStatCard ? `
+                                <div class="widget-stat-value" id="stat-${widget.id}">
+                                    <div class="spinner" style="width: 20px; height: 20px;"></div>
+                                </div>
+                                <div class="widget-stat-label" id="stat-label-${widget.id}">Loading...</div>
+                            ` : ''}
+                            ${isChart ? `
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="chart-${widget.id}"></canvas>
+                                </div>
+                            ` : ''}
+                            ${isTable ? `
+                                <div class="table-responsive" id="table-${widget.id}" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="text-center"><div class="spinner"></div></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Load data for all widgets
+            reportWidgets.forEach(loadReportWidgetData);
+        }
+
+        // Load data for a single widget
+        async function loadReportWidgetData(widget) {
+            try {
+                const params = new URLSearchParams({
+                    report_id: widget.reportId,
+                    type: widget.type,
+                    limit: widget.limit
+                });
+
+                if (widget.aggregateField) {
+                    params.append('aggregate_field', widget.aggregateField);
+                }
+                if (widget.groupBy) {
+                    params.append('group_by', widget.groupBy);
+                }
+                if (widget.aggregateFunc) {
+                    params.append('aggregate_func', widget.aggregateFunc);
+                }
+
+                const response = await fetch(`api/dashboard/report-widget.php?${params}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('Widget error:', data.error);
+                    showWidgetError(widget.id, data.error);
+                    return;
+                }
+
+                renderWidgetData(widget, data);
+            } catch (error) {
+                console.error('Failed to load widget data:', error);
+                showWidgetError(widget.id, error.message);
+            }
+        }
+
+        function showWidgetError(widgetId, message) {
+            const card = document.getElementById('widget-' + widgetId);
+            if (card) {
+                const body = card.querySelector('.card-body');
+                if (body) {
+                    body.innerHTML = `<div class="text-muted text-center" style="padding: 40px 20px;">Error: ${escapeHtml(message)}</div>`;
+                }
+            }
+        }
+
+        function renderWidgetData(widget, data) {
+            if (widget.type === 'stat_card') {
+                const valueEl = document.getElementById('stat-' + widget.id);
+                const labelEl = document.getElementById('stat-label-' + widget.id);
+                if (valueEl) {
+                    const value = data.value ?? data.count ?? 0;
+                    const isMonetary = widget.aggregateField &&
+                        (widget.aggregateField.includes('charge') || widget.aggregateField.includes('price') || widget.aggregateField.includes('cost'));
+                    valueEl.textContent = isMonetary
+                        ? currencySymbol + parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                        : parseFloat(value).toLocaleString();
+                }
+                if (labelEl) {
+                    labelEl.textContent = widget.aggregateFunc === 'count'
+                        ? `${data.count} records`
+                        : `${widget.aggregateFunc} of ${widget.aggregateField || 'records'}`;
+                }
+            } else if (widget.type.startsWith('chart_')) {
+                renderWidgetChart(widget, data);
+            } else if (widget.type === 'table') {
+                renderWidgetTable(widget, data);
+            }
+        }
+
+        function renderWidgetChart(widget, data) {
+            const ctx = document.getElementById('chart-' + widget.id);
+            if (!ctx || !data.chart) return;
+
+            // Destroy existing chart if any
+            if (reportWidgetCharts[widget.id]) {
+                reportWidgetCharts[widget.id].destroy();
+            }
+
+            const chartType = widget.type.replace('chart_', '');
+            const chartColors = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+            const config = {
+                type: chartType,
+                data: {
+                    labels: data.chart.labels,
+                    datasets: [{
+                        label: widget.reportName,
+                        data: data.chart.values,
+                        backgroundColor: chartType === 'line' ? 'rgba(102, 126, 234, 0.1)' : chartColors,
+                        borderColor: chartType === 'line' ? '#667eea' : undefined,
+                        fill: chartType === 'line',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: chartType === 'pie' || chartType === 'doughnut', position: 'bottom' }
+                    }
+                }
+            };
+
+            if (chartType === 'bar') {
+                config.options.indexAxis = 'y';
+            }
+
+            reportWidgetCharts[widget.id] = new Chart(ctx, config);
+        }
+
+        function renderWidgetTable(widget, data) {
+            const container = document.getElementById('table-' + widget.id);
+            if (!container || !data.data) return;
+
+            if (data.data.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No data available</p>';
+                return;
+            }
+
+            const columns = data.columns || Object.keys(data.data[0] || {});
+            const displayCols = columns.slice(0, 5); // Limit columns for widget
+
+            let html = '<table class="table table-sm"><thead><tr>';
+            displayCols.forEach(col => {
+                html += `<th>${escapeHtml(col)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            data.data.forEach(row => {
+                html += '<tr>';
+                displayCols.forEach(col => {
+                    const value = row[col] ?? '';
+                    html += `<td>${escapeHtml(String(value))}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            if (data.total > data.data.length) {
+                html += `<div class="text-muted text-center" style="font-size: 12px;">Showing ${data.data.length} of ${data.total}</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function refreshReportWidget(widgetId) {
+            const widget = reportWidgets.find(w => w.id === widgetId);
+            if (widget) {
+                loadReportWidgetData(widget);
+            }
+        }
+
+        function removeReportWidget(widgetId) {
+            if (!confirm('Remove this widget?')) return;
+
+            // Destroy chart if exists
+            if (reportWidgetCharts[widgetId]) {
+                reportWidgetCharts[widgetId].destroy();
+                delete reportWidgetCharts[widgetId];
+            }
+
+            reportWidgets = reportWidgets.filter(w => w.id !== widgetId);
+            saveReportWidgets();
+            renderReportWidgets();
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('report-widget-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeReportWidgetModal();
+            }
+        });
+
+        // Initialize report widgets on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedReports();
+            loadReportWidgets();
+        });
     </script>
 </body>
 </html>
