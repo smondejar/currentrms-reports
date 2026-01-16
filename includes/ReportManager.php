@@ -212,10 +212,11 @@ class ReportManager
     public static function incrementRunCount(int $id): bool
     {
         $prefix = Database::getPrefix();
-        return Database::execute(
+        $stmt = Database::query(
             "UPDATE {$prefix}reports SET run_count = COALESCE(run_count, 0) + 1, last_run_at = NOW() WHERE id = ?",
             [$id]
-        ) > 0;
+        );
+        return $stmt->rowCount() > 0;
     }
 
     /**
