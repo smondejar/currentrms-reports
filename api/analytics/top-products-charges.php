@@ -25,9 +25,11 @@ try {
     $limit = intval($_GET['limit'] ?? 20);
     $limit = min(100, max(1, $limit));
 
-    // Build query string for multiple includes
+    // Build query string - get ALL opportunities in date range regardless of status
+    // Use filtermode=all to include all statuses (draft, quote, order, cancelled, etc.)
     $baseParams = [
         'per_page' => 100,
+        'filtermode' => 'all',
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ];
@@ -35,6 +37,10 @@ try {
 
     // Fetch opportunities with items
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
+
+    // If filtermode doesn't work, try without it but the query should get all opportunities
+    // Debug: log what we're querying
+    $debugQuery = $queryString;
 
     // Aggregate charges by product
     $productCharges = [];
@@ -123,6 +129,7 @@ try {
             'opportunities_analyzed' => count($opportunities),
         ],
         'debug' => [
+            'query_used' => $debugQuery,
             'opportunities_fetched' => count($opportunities),
             'total_items_in_opportunities' => $totalItemsProcessed,
             'unique_products_found' => count($productCharges),
