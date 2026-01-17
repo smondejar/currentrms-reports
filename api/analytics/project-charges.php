@@ -87,17 +87,16 @@ try {
         return $b['charges'] <=> $a['charges'];
     });
 
-    // Debug: show opportunity + project structures for troubleshooting
+    // Debug: show opportunity structure to find project link
     $debugInfo = [];
     foreach (array_slice($opportunities, 0, 3) as $opp) {
-        $project = $opp['project'] ?? null;
         $debugInfo[] = [
             'opp_id' => $opp['id'] ?? null,
             'subject' => $opp['subject'] ?? null,
             'charge_total' => $opp['charge_total'] ?? 'NOT SET',
-            'has_project' => $project !== null,
-            'project_id' => $project['id'] ?? 'NO PROJECT',
-            'project_custom_fields' => $project['custom_fields'] ?? 'NOT SET',
+            'project_id' => $opp['project_id'] ?? 'NOT SET',
+            'project' => isset($opp['project']) ? 'SET' : 'NOT SET',
+            'all_keys' => array_keys($opp),
         ];
     }
 
