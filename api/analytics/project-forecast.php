@@ -102,6 +102,22 @@ try {
         return $b['charges'] <=> $a['charges'];
     });
 
+    // Debug info
+    $debugInfo = [];
+    foreach (array_slice($opportunities, 0, 5) as $opp) {
+        $projectId = $opp['project_id'] ?? null;
+        $project = $projectId ? ($projectsData[$projectId] ?? null) : null;
+        $debugInfo[] = [
+            'opp_id' => $opp['id'],
+            'subject' => $opp['subject'] ?? null,
+            'starts_at' => $opp['starts_at'] ?? null,
+            'charge_total' => $opp['charge_total'] ?? null,
+            'project_id' => $projectId,
+            'project_found' => $project !== null,
+            'project_category' => $project ? ($project['custom_fields']['category'] ?? 'NOT SET') : 'NO PROJECT',
+        ];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => [
@@ -113,6 +129,12 @@ try {
             'forecast_from' => $forecastFrom,
             'forecast_to' => $forecastTo,
             'days_ahead' => $daysAhead,
+        ],
+        'debug' => [
+            'total_opportunities' => count($opportunities),
+            'unique_projects' => count($oppByProjectId),
+            'projects_fetched' => count($projectsData),
+            'samples' => $debugInfo,
         ],
     ]);
 
