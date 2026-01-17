@@ -35,17 +35,19 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // Fetch ALL opportunities with items and owner expanded
+    // Fetch opportunities with items and owner expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
-    // Use filtermode=all to include all statuses (draft, quote, order, cancelled, etc.)
+    // Only include active statuses: Draft (0), Quotation (1), Order (2) - exclude Dead/Cancelled
     $baseParams = [
         'per_page' => 100,
-        'filtermode' => 'all',
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
     ];
-    // Add multiple include params by appending to query string
-    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items&include[]=owner';
+    // Add multiple include params and state filters
+    // State: 0=Draft, 1=Quotation, 2=Order, 3=Closed, 4=Dead/Cancelled
+    $queryString = http_build_query($baseParams)
+        . '&include[]=opportunity_items&include[]=owner'
+        . '&q[state_in][]=0&q[state_in][]=1&q[state_in][]=2';
 
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 

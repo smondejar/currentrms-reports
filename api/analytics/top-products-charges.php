@@ -25,15 +25,17 @@ try {
     $limit = intval($_GET['limit'] ?? 20);
     $limit = min(100, max(1, $limit));
 
-    // Build query string - get ALL opportunities in date range regardless of status
-    // Use filtermode=all to include all statuses (draft, quote, order, cancelled, etc.)
+    // Build query string - get opportunities in date range
+    // Only include active statuses: Draft (0), Quotation (1), Order (2) - exclude Dead/Cancelled
     $baseParams = [
         'per_page' => 100,
-        'filtermode' => 'all',
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ];
-    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items';
+    // State: 0=Draft, 1=Quotation, 2=Order, 3=Closed, 4=Dead/Cancelled
+    $queryString = http_build_query($baseParams)
+        . '&include[]=opportunity_items'
+        . '&q[state_in][]=0&q[state_in][]=1&q[state_in][]=2';
 
     // Fetch opportunities with items
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
