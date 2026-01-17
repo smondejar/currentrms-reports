@@ -86,15 +86,17 @@ try {
         return $b['charges'] <=> $a['charges'];
     });
 
-    // Debug: show first project's custom_fields structure
-    $debugInfo = null;
-    if (!empty($projects)) {
-        $firstProj = $projects[0];
-        $debugInfo = [
-            'project_id' => $firstProj['id'] ?? null,
-            'custom_fields_keys' => isset($firstProj['custom_fields']) ? array_keys($firstProj['custom_fields']) : 'NOT SET',
-            'custom_fields_raw' => $firstProj['custom_fields'] ?? 'NOT SET',
-            'total_projects_fetched' => count($projects),
+    // Debug: show project structures for troubleshooting
+    $debugInfo = [];
+    foreach (array_slice($projects, 0, 3) as $proj) {
+        $debugInfo[] = [
+            'id' => $proj['id'] ?? null,
+            'subject' => $proj['subject'] ?? null,
+            'charge_total' => $proj['charge_total'] ?? 'NOT SET',
+            'total' => $proj['total'] ?? 'NOT SET',
+            'rental_charge_total' => $proj['rental_charge_total'] ?? 'NOT SET',
+            'custom_fields' => $proj['custom_fields'] ?? 'NOT SET',
+            'all_keys' => array_keys($proj),
         ];
     }
 
