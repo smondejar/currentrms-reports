@@ -179,11 +179,18 @@ class CurrentRMSClient
             $allResults = array_merge($allResults, $results);
 
             $meta = $response['meta'] ?? [];
-            $totalPages = $meta['total_pages'] ?? 1;
+
+            // Calculate total pages - API returns total_row_count, not total_pages
+            if (isset($meta['total_row_count']) && isset($meta['per_page']) && $meta['per_page'] > 0) {
+                $totalPages = (int) ceil($meta['total_row_count'] / $meta['per_page']);
+            } else {
+                $totalPages = $meta['total_pages'] ?? 1;
+            }
 
             // Store meta from first page for debugging
             if ($page === 1) {
                 $this->lastFetchMeta = $meta;
+                $this->lastFetchMeta['calculated_total_pages'] = $totalPages;
             }
 
             $page++;
