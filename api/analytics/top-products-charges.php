@@ -26,28 +26,36 @@ try {
     $limit = min(100, max(1, $limit));
 
     // Build query string - get opportunities in date range
-    // Only include active statuses: Draft (0), Quotation (1), Order (2) - exclude Dead/Cancelled
     $baseParams = [
         'per_page' => 100,
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ];
-    // State: 0=Draft, 1=Quotation, 2=Order, 3=Closed, 4=Dead/Cancelled
-    $queryString = http_build_query($baseParams)
-        . '&include[]=opportunity_items'
-        . '&q[state_in][]=0&q[state_in][]=1&q[state_in][]=2';
+    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items';
 
     // Fetch opportunities with items
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
-    // If filtermode doesn't work, try without it but the query should get all opportunities
     // Debug: log what we're querying
     $debugQuery = $queryString;
+    $skippedStatuses = [];
 
     // Aggregate charges by product
     $productCharges = [];
 
     foreach ($opportunities as $opp) {
+        // Skip dead/cancelled/closed lost opportunities
+        $state = $opp['state'] ?? null;
+        $statusName = strtolower($opp['status_name'] ?? $opp['status'] ?? '');
+
+        if ($state === 4 || $state === 'dead' ||
+            strpos($statusName, 'dead') !== false ||
+            strpos($statusName, 'cancel') !== false ||
+            strpos($statusName, 'closed lost') !== false) {
+            $skippedStatuses[$statusName] = ($skippedStatuses[$statusName] ?? 0) + 1;
+            continue;
+        }
+
         $items = $opp['opportunity_items'] ?? [];
 
         foreach ($items as $item) {
@@ -133,6 +141,7 @@ try {
         'debug' => [
             'query_used' => $debugQuery,
             'opportunities_fetched' => count($opportunities),
+            'skipped_by_status' => $skippedStatuses,
             'total_items_in_opportunities' => $totalItemsProcessed,
             'unique_products_found' => count($productCharges),
             'date_range' => $fromDate . ' to ' . $toDate,

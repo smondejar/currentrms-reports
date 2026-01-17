@@ -37,25 +37,36 @@ try {
 
     // Fetch opportunities with items and owner expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
-    // Only include active statuses: Draft (0), Quotation (1), Order (2) - exclude Dead/Cancelled
+    // Remove state filter for now to get all opportunities, then filter in PHP
     $baseParams = [
         'per_page' => 100,
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
     ];
-    // Add multiple include params and state filters
-    // State: 0=Draft, 1=Quotation, 2=Order, 3=Closed, 4=Dead/Cancelled
     $queryString = http_build_query($baseParams)
-        . '&include[]=opportunity_items&include[]=owner'
-        . '&q[state_in][]=0&q[state_in][]=1&q[state_in][]=2';
+        . '&include[]=opportunity_items&include[]=owner';
 
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
     $underRateItems = [];
     $ownerSummary = [];
+    $skippedStatuses = [];
 
     // Analyze items for discounts using CurrentRMS's discount_percent field
     foreach ($opportunities as $opp) {
+        // Get opportunity status - skip dead/cancelled/closed lost
+        $state = $opp['state'] ?? null;
+        $statusName = strtolower($opp['status_name'] ?? $opp['status'] ?? '');
+
+        // Skip dead, cancelled, or closed lost opportunities
+        if ($state === 4 || $state === 'dead' ||
+            strpos($statusName, 'dead') !== false ||
+            strpos($statusName, 'cancel') !== false ||
+            strpos($statusName, 'closed lost') !== false) {
+            $skippedStatuses[$statusName] = ($skippedStatuses[$statusName] ?? 0) + 1;
+            continue;
+        }
+
         $items = $opp['opportunity_items'] ?? [];
 
         // Get owner from the 'owner' field (already expanded object in CurrentRMS)
@@ -188,6 +199,7 @@ try {
             'past_days_used' => $pastDays,
             'future_days_used' => $futureDays,
             'total_opportunities_fetched' => count($opportunities),
+            'skipped_by_status' => $skippedStatuses,
             'date_range_used' => $startDate . ' to ' . $endDate,
             'query_params' => $queryString,
         ],
