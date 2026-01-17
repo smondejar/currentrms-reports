@@ -810,6 +810,38 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     </div>
                 </div>
 
+                <!-- SERVICES SECTION -->
+                <div class="section-header">
+                    <h2>Services</h2>
+                </div>
+                <div class="two-col-grid">
+                    <!-- Top 20 Services by Charges -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Top 20 Services by Charges</h3>
+                            <span id="services-charges-dates" class="widget-dates"></span>
+                        </div>
+                        <div class="card-body">
+                            <div id="top-services-charges" class="product-list loading-placeholder">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top 20 Services by Utilisation -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Top 20 Services by Utilisation</h3>
+                            <span id="services-utilisation-dates" class="widget-dates"></span>
+                        </div>
+                        <div class="card-body">
+                            <div id="top-services-utilisation" class="product-list loading-placeholder">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- UNDER-RATE QUOTES SECTION -->
                 <div class="section-header">
                     <h2>Under-Rate Quotes Analysis</h2>
@@ -953,6 +985,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     loadProjectForecast(),
                     loadTopProductsByCharges(),
                     loadTopProductsByUtilisation(),
+                    loadTopServicesByCharges(),
+                    loadTopServicesByUtilisation(),
                     loadUnderRateQuotes()
                 ]);
             } catch (error) {
@@ -1118,7 +1152,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 const params = new URLSearchParams({
                     from: currentDateRange.from,
                     to: currentDateRange.to,
-                    limit: 20
+                    limit: 20,
+                    type: 'product'
                 });
                 console.log('Loading products by charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
@@ -1150,12 +1185,75 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 const params = new URLSearchParams({
                     from: currentDateRange.from,
                     to: currentDateRange.to,
-                    limit: 20
+                    limit: 20,
+                    type: 'product'
                 });
                 console.log('Loading products by utilisation with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
                 const data = await response.json();
                 console.log('Products by Utilisation DEBUG:', data.debug);
+
+                if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                // Update dates in header
+                if (datesEl && data.filters && data.filters.from && data.filters.to) {
+                    const fromDate = new Date(data.filters.from).toLocaleDateString();
+                    const toDate = new Date(data.filters.to).toLocaleDateString();
+                    datesEl.textContent = `${fromDate} - ${toDate}`;
+                }
+
+                renderProductList(container, data.data, 'utilisation');
+            } catch (error) {
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        // Load Top Services by Charges
+        async function loadTopServicesByCharges() {
+            const container = document.getElementById('top-services-charges');
+            const datesEl = document.getElementById('services-charges-dates');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    from: currentDateRange.from,
+                    to: currentDateRange.to,
+                    limit: 20,
+                    type: 'service'
+                });
+                const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                // Update dates in header
+                if (datesEl && data.filters && data.filters.from && data.filters.to) {
+                    const fromDate = new Date(data.filters.from).toLocaleDateString();
+                    const toDate = new Date(data.filters.to).toLocaleDateString();
+                    datesEl.textContent = `${fromDate} - ${toDate}`;
+                }
+
+                renderProductList(container, data.data, 'charges');
+            } catch (error) {
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        // Load Top Services by Utilisation
+        async function loadTopServicesByUtilisation() {
+            const container = document.getElementById('top-services-utilisation');
+            const datesEl = document.getElementById('services-utilisation-dates');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    from: currentDateRange.from,
+                    to: currentDateRange.to,
+                    limit: 20,
+                    type: 'service'
+                });
+                const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
+                const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 

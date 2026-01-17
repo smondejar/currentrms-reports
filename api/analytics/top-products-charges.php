@@ -25,6 +25,12 @@ try {
     $limit = intval($_GET['limit'] ?? 20);
     $limit = min(100, max(1, $limit));
 
+    // Type filter: 'product' or 'service' (default: 'product')
+    // In CurrentRMS: item_type 1 = Rental, 2 = Sale, 3 = Service, 4 = Accessory
+    $typeFilter = strtolower($_GET['type'] ?? 'product');
+    $serviceTypes = [3]; // Service item types
+    $productTypes = [1, 2, 4]; // Rental, Sale, Accessory
+
     // Build query string - get ALL opportunities in date range
     // Use filtermode=all to get all opportunities, then filter out dead in PHP
     $baseParams = [
@@ -63,11 +69,25 @@ try {
         foreach ($items as $item) {
             $productName = $item['name'] ?? $item['product_name'] ?? 'Unknown Product';
             $productId = $item['product_id'] ?? 0;
+            $itemType = $item['item_type'] ?? $item['product_type'] ?? null;
 
             // Skip group headers (quantity = 0)
             $quantity = floatval($item['quantity'] ?? 0);
             if ($quantity <= 0) {
                 continue;
+            }
+
+            // Filter by type (product vs service)
+            if ($typeFilter === 'service') {
+                // Only include services
+                if (!in_array($itemType, $serviceTypes)) {
+                    continue;
+                }
+            } else {
+                // Only include products (rental, sale, accessory) - exclude services
+                if (in_array($itemType, $serviceTypes)) {
+                    continue;
+                }
             }
 
             // Get charges (not revenue - use charge_total which is what was charged)
@@ -121,6 +141,7 @@ try {
             'sample_items' => array_slice(array_map(function($item) {
                 return [
                     'name' => $item['name'] ?? $item['product_name'] ?? 'Unknown',
+                    'item_type' => $item['item_type'] ?? $item['product_type'] ?? null,
                     'quantity' => $item['quantity'] ?? 0,
                     'charge_total' => $item['charge_total'] ?? $item['total'] ?? 0,
                 ];
@@ -135,6 +156,7 @@ try {
             'from' => $fromDate,
             'to' => $toDate,
             'limit' => $limit,
+            'type' => $typeFilter,
         ],
         'meta' => [
             'total_products' => count($productCharges),
