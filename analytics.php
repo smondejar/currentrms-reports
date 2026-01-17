@@ -151,11 +151,20 @@ $subdomain = config('currentrms.subdomain') ?? '';
             }
         }
 
+        /* Widget Date Display */
+        .widget-dates {
+            display: block;
+            font-size: 10px;
+            color: var(--gray-500);
+            font-weight: normal;
+            margin-top: 2px;
+        }
+
         /* Forecast Header Controls */
         .forecast-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             gap: 6px;
             flex-wrap: wrap;
         }
@@ -739,6 +748,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">Project Charges by Category</h3>
+                            <span id="project-charges-dates" class="widget-dates"></span>
                         </div>
                         <div class="card-body">
                             <div id="project-charges-table" class="loading-placeholder">
@@ -750,7 +760,10 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     <!-- Project Forecast -->
                     <div class="card">
                         <div class="card-header forecast-header">
-                            <h3 class="card-title">Project Forecast</h3>
+                            <div>
+                                <h3 class="card-title">Project Forecast</h3>
+                                <span id="project-forecast-dates" class="widget-dates"></span>
+                            </div>
                             <div class="forecast-controls">
                                 <label>Days:</label>
                                 <input type="number" id="forecast-days" value="90" min="7" max="365">
@@ -774,6 +787,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">Top 20 Products by Charges</h3>
+                            <span id="products-charges-dates" class="widget-dates"></span>
                         </div>
                         <div class="card-body">
                             <div id="top-products-charges" class="product-list loading-placeholder">
@@ -786,6 +800,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">Top 20 Products by Utilisation</h3>
+                            <span id="products-utilisation-dates" class="widget-dates"></span>
                         </div>
                         <div class="card-body">
                             <div id="top-products-utilisation" class="product-list loading-placeholder">
@@ -972,21 +987,21 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
         function renderProjectCharges(data, filters) {
             const container = document.getElementById('project-charges-table');
+            const datesEl = document.getElementById('project-charges-dates');
+
+            // Update dates in header
+            if (datesEl && filters && filters.from && filters.to) {
+                const fromDate = new Date(filters.from).toLocaleDateString();
+                const toDate = new Date(filters.to).toLocaleDateString();
+                datesEl.textContent = `${fromDate} - ${toDate}`;
+            }
 
             if (!data.categories || data.categories.length === 0) {
                 container.innerHTML = '<p class="text-muted text-center">No project data available</p>';
                 return;
             }
 
-            // Show date range
-            let dateInfo = '';
-            if (filters && filters.from && filters.to) {
-                const fromDate = new Date(filters.from).toLocaleDateString();
-                const toDate = new Date(filters.to).toLocaleDateString();
-                dateInfo = `<div style="font-size: 10px; color: var(--gray-500); margin-bottom: 6px;">${fromDate} - ${toDate}</div>`;
-            }
-
-            let html = dateInfo + `
+            let html = `
                 <table class="category-table">
                     <thead>
                         <tr>
@@ -1044,21 +1059,21 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
         function renderProjectForecast(data, filters) {
             const container = document.getElementById('project-forecast-table');
+            const datesEl = document.getElementById('project-forecast-dates');
+
+            // Update dates in header
+            if (datesEl && filters && filters.forecast_from && filters.forecast_to) {
+                const fromDate = new Date(filters.forecast_from).toLocaleDateString();
+                const toDate = new Date(filters.forecast_to).toLocaleDateString();
+                datesEl.textContent = `${fromDate} - ${toDate}`;
+            }
 
             if (!data.categories || data.categories.length === 0) {
                 container.innerHTML = '<p class="text-muted text-center">No forecast data available</p>';
                 return;
             }
 
-            // Format date range
-            let dateInfo = '';
-            if (filters && filters.forecast_from && filters.forecast_to) {
-                const fromDate = new Date(filters.forecast_from).toLocaleDateString();
-                const toDate = new Date(filters.forecast_to).toLocaleDateString();
-                dateInfo = `<div style="font-size: 10px; color: var(--gray-500); margin-bottom: 6px;">${fromDate} - ${toDate}</div>`;
-            }
-
-            let html = dateInfo + `
+            let html = `
                 <table class="category-table">
                     <thead>
                         <tr>
@@ -1096,6 +1111,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         // Load Top Products by Charges
         async function loadTopProductsByCharges() {
             const container = document.getElementById('top-products-charges');
+            const datesEl = document.getElementById('products-charges-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
@@ -1104,10 +1120,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     to: currentDateRange.to,
                     limit: 20
                 });
+                console.log('Loading products by charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                // Update dates in header
+                if (datesEl && data.filters && data.filters.from && data.filters.to) {
+                    const fromDate = new Date(data.filters.from).toLocaleDateString();
+                    const toDate = new Date(data.filters.to).toLocaleDateString();
+                    datesEl.textContent = `${fromDate} - ${toDate}`;
+                }
 
                 renderProductList(container, data.data, 'charges');
             } catch (error) {
@@ -1118,6 +1142,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         // Load Top Products by Utilisation
         async function loadTopProductsByUtilisation() {
             const container = document.getElementById('top-products-utilisation');
+            const datesEl = document.getElementById('products-utilisation-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
@@ -1126,10 +1151,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     to: currentDateRange.to,
                     limit: 20
                 });
+                console.log('Loading products by utilisation with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                // Update dates in header
+                if (datesEl && data.filters && data.filters.from && data.filters.to) {
+                    const fromDate = new Date(data.filters.from).toLocaleDateString();
+                    const toDate = new Date(data.filters.to).toLocaleDateString();
+                    datesEl.textContent = `${fromDate} - ${toDate}`;
+                }
 
                 renderProductList(container, data.data, 'utilisation');
             } catch (error) {
