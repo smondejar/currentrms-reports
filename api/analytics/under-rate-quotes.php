@@ -183,6 +183,10 @@ try {
             'end_date' => $endDate,
         ],
         'debug' => [
+            'raw_past_days_input' => $_GET['past_days'] ?? 'not set',
+            'raw_future_days_input' => $_GET['future_days'] ?? 'not set',
+            'past_days_used' => $pastDays,
+            'future_days_used' => $futureDays,
             'total_opportunities_fetched' => count($opportunities),
             'date_range_used' => $startDate . ' to ' . $endDate,
             'query_params' => $queryString,

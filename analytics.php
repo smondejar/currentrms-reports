@@ -1221,8 +1221,11 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     future_days: futureDays,
                     min_discount: minDiscount
                 });
+                console.log('Under-Rate Quotes - Sending params:', { past_days: pastDays, future_days: futureDays, min_discount: minDiscount });
                 const response = await fetch(`api/analytics/under-rate-quotes.php?${params}`);
                 const result = await response.json();
+                console.log('Under-Rate Quotes DEBUG:', result.debug);
+                console.log('Under-Rate Quotes filters:', result.filters);
 
                 if (!result.success) throw new Error(result.error || 'Failed to load');
 
