@@ -32,34 +32,30 @@ try {
 
     $projects = $api->fetchAllWithQuery('projects', $queryString, 50);
 
-    // Group by "Event category" custom field (Business vs Consumer)
+    // Category custom field IDs
+    // 1000074 = Business - Conf, assoc, corporate, exhib
+    // 1000075 = Consumer - Entert, consumer, exhib
+    $BUSINESS_ID = 1000074;
+    $CONSUMER_ID = 1000075;
+
+    // Group by "category" custom field (Business vs Consumer)
     $categoryData = [
-        'Business' => ['name' => 'Business - Conf, assoc, corporate, exhib', 'count' => 0, 'charges' => 0],
-        'Consumer' => ['name' => 'Consumer - Entert, consumer, exhib', 'count' => 0, 'charges' => 0],
+        'Business' => ['name' => 'Business', 'count' => 0, 'charges' => 0],
+        'Consumer' => ['name' => 'Consumer', 'count' => 0, 'charges' => 0],
     ];
     $totalCharges = 0;
     $totalProjects = 0;
 
     foreach ($projects as $proj) {
-        // Get category from custom fields - look for "Event category" field
         $category = null;
 
-        if (isset($proj['custom_fields']) && is_array($proj['custom_fields'])) {
-            foreach ($proj['custom_fields'] as $field) {
-                $fieldName = strtolower(trim($field['name'] ?? ''));
-                // Match "event category" field
-                if ($fieldName === 'event category' || $fieldName === 'event_category' ||
-                    $fieldName === 'category' || $fieldName === 'categories') {
-                    $value = trim($field['value'] ?? '');
-                    $valueLower = strtolower($value);
-                    // Match by checking if value starts with Business or Consumer
-                    if (strpos($valueLower, 'business') === 0) {
-                        $category = 'Business';
-                    } elseif (strpos($valueLower, 'consumer') === 0) {
-                        $category = 'Consumer';
-                    }
-                    break;
-                }
+        // Check custom_fields for category array
+        if (isset($proj['custom_fields']['category']) && is_array($proj['custom_fields']['category'])) {
+            $categoryIds = $proj['custom_fields']['category'];
+            if (in_array($BUSINESS_ID, $categoryIds)) {
+                $category = 'Business';
+            } elseif (in_array($CONSUMER_ID, $categoryIds)) {
+                $category = 'Consumer';
             }
         }
 
