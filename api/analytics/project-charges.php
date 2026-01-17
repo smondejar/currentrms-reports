@@ -23,12 +23,14 @@ try {
     $fromDate = $_GET['from'] ?? date('Y-m-d', strtotime('-90 days'));
     $toDate = $_GET['to'] ?? date('Y-m-d');
 
-    // Fetch opportunities within the date range (past dates = completed/historical projects)
-    $opportunities = $api->fetchAll('opportunities', [
+    // Fetch projects within the date range with custom_fields included
+    $queryString = http_build_query([
         'per_page' => 100,
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
-    ], 50);
+    ]) . '&include[]=custom_fields';
+
+    $projects = $api->fetchAllWithQuery('projects', $queryString, 50);
 
     // Group by "Event category" custom field (Business vs Consumer)
     $categoryData = [
@@ -38,12 +40,12 @@ try {
     $totalCharges = 0;
     $totalProjects = 0;
 
-    foreach ($opportunities as $opp) {
+    foreach ($projects as $proj) {
         // Get category from custom fields - look for "Event category" field
         $category = null;
 
-        if (isset($opp['custom_fields']) && is_array($opp['custom_fields'])) {
-            foreach ($opp['custom_fields'] as $field) {
+        if (isset($proj['custom_fields']) && is_array($proj['custom_fields'])) {
+            foreach ($proj['custom_fields'] as $field) {
                 $fieldName = strtolower(trim($field['name'] ?? ''));
                 // Match "event category" field
                 if ($fieldName === 'event category' || $fieldName === 'event_category' ||
@@ -67,7 +69,7 @@ try {
         }
 
         // Get charges
-        $charges = floatval($opp['charge_total'] ?? $opp['total'] ?? 0);
+        $charges = floatval($proj['charge_total'] ?? $proj['total'] ?? 0);
 
         if (!isset($categoryData[$category])) {
             $categoryData[$category] = [
