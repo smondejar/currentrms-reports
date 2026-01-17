@@ -27,14 +27,14 @@ try {
     $forecastFrom = date('Y-m-d');
     $forecastTo = date('Y-m-d', strtotime("+{$daysAhead} days"));
 
-    // Fetch future projects with custom_fields included
+    // Fetch future opportunities (which have the charge data) with custom_fields included
     $queryString = http_build_query([
         'per_page' => 100,
         'q[starts_at_gteq]' => $forecastFrom,
         'q[starts_at_lteq]' => $forecastTo . ' 23:59:59',
     ]) . '&include[]=custom_fields';
 
-    $projects = $api->fetchAllWithQuery('projects', $queryString, 50);
+    $projects = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
     // Category custom field IDs
     // 1000074 = Business - Conf, assoc, corporate, exhib

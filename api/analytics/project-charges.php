@@ -23,14 +23,15 @@ try {
     $fromDate = $_GET['from'] ?? date('Y-m-d', strtotime('-90 days'));
     $toDate = $_GET['to'] ?? date('Y-m-d');
 
-    // Fetch projects within the date range with custom_fields included
+    // Fetch opportunities (which have the charge data) with custom_fields included
+    // Filter by date range - these are confirmed opportunities (projects)
     $queryString = http_build_query([
         'per_page' => 100,
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ]) . '&include[]=custom_fields';
 
-    $projects = $api->fetchAllWithQuery('projects', $queryString, 50);
+    $projects = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
     // Category custom field IDs
     // 1000074 = Business - Conf, assoc, corporate, exhib
