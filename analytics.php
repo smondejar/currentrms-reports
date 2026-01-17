@@ -964,13 +964,13 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
-                renderProjectCharges(data.data);
+                renderProjectCharges(data.data, data.filters);
             } catch (error) {
                 container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
             }
         }
 
-        function renderProjectCharges(data) {
+        function renderProjectCharges(data, filters) {
             const container = document.getElementById('project-charges-table');
 
             if (!data.categories || data.categories.length === 0) {
@@ -978,7 +978,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 return;
             }
 
-            let html = `
+            // Show date range
+            let dateInfo = '';
+            if (filters && filters.from && filters.to) {
+                const fromDate = new Date(filters.from).toLocaleDateString();
+                const toDate = new Date(filters.to).toLocaleDateString();
+                dateInfo = `<div style="font-size: 10px; color: var(--gray-500); margin-bottom: 6px;">${fromDate} - ${toDate}</div>`;
+            }
+
+            let html = dateInfo + `
                 <table class="category-table">
                     <thead>
                         <tr>
