@@ -23,17 +23,16 @@ try {
     $fromDate = $_GET['from'] ?? date('Y-m-d', strtotime('-90 days'));
     $toDate = $_GET['to'] ?? date('Y-m-d');
 
-    // Fetch opportunities (which have the charge data) with custom_fields included
-    // Filter by date range - these are confirmed opportunities (projects)
+    // Fetch opportunities with linked project (project has the category custom field)
     $queryString = http_build_query([
         'per_page' => 100,
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
-    ]) . '&include[]=custom_fields';
+    ]) . '&include[]=project&include[]=project.custom_fields';
 
-    $projects = $api->fetchAllWithQuery('opportunities', $queryString, 50);
+    $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
-    // Category custom field IDs
+    // Category custom field IDs (on project)
     // 1000074 = Business - Conf, assoc, corporate, exhib
     // 1000075 = Consumer - Entert, consumer, exhib
     $BUSINESS_ID = 1000074;
@@ -47,12 +46,13 @@ try {
     $totalCharges = 0;
     $totalProjects = 0;
 
-    foreach ($projects as $proj) {
+    foreach ($opportunities as $opp) {
         $category = null;
 
-        // Check custom_fields for category array
-        if (isset($proj['custom_fields']['category']) && is_array($proj['custom_fields']['category'])) {
-            $categoryIds = $proj['custom_fields']['category'];
+        // Get category from linked project's custom_fields
+        $project = $opp['project'] ?? null;
+        if ($project && isset($project['custom_fields']['category']) && is_array($project['custom_fields']['category'])) {
+            $categoryIds = $project['custom_fields']['category'];
             if (in_array($BUSINESS_ID, $categoryIds)) {
                 $category = 'Business';
             } elseif (in_array($CONSUMER_ID, $categoryIds)) {
@@ -65,8 +65,8 @@ try {
             continue;
         }
 
-        // Get charges
-        $charges = floatval($proj['charge_total'] ?? $proj['total'] ?? 0);
+        // Get charges from opportunity
+        $charges = floatval($opp['charge_total'] ?? $opp['total'] ?? 0);
 
         if (!isset($categoryData[$category])) {
             $categoryData[$category] = [
@@ -87,17 +87,17 @@ try {
         return $b['charges'] <=> $a['charges'];
     });
 
-    // Debug: show project structures for troubleshooting
+    // Debug: show opportunity + project structures for troubleshooting
     $debugInfo = [];
-    foreach (array_slice($projects, 0, 3) as $proj) {
+    foreach (array_slice($opportunities, 0, 3) as $opp) {
+        $project = $opp['project'] ?? null;
         $debugInfo[] = [
-            'id' => $proj['id'] ?? null,
-            'subject' => $proj['subject'] ?? null,
-            'charge_total' => $proj['charge_total'] ?? 'NOT SET',
-            'total' => $proj['total'] ?? 'NOT SET',
-            'rental_charge_total' => $proj['rental_charge_total'] ?? 'NOT SET',
-            'custom_fields' => $proj['custom_fields'] ?? 'NOT SET',
-            'all_keys' => array_keys($proj),
+            'opp_id' => $opp['id'] ?? null,
+            'subject' => $opp['subject'] ?? null,
+            'charge_total' => $opp['charge_total'] ?? 'NOT SET',
+            'has_project' => $project !== null,
+            'project_id' => $project['id'] ?? 'NO PROJECT',
+            'project_custom_fields' => $project['custom_fields'] ?? 'NOT SET',
         ];
     }
 

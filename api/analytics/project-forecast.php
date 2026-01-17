@@ -27,16 +27,16 @@ try {
     $forecastFrom = date('Y-m-d');
     $forecastTo = date('Y-m-d', strtotime("+{$daysAhead} days"));
 
-    // Fetch future opportunities (which have the charge data) with custom_fields included
+    // Fetch future opportunities with linked project (project has the category custom field)
     $queryString = http_build_query([
         'per_page' => 100,
         'q[starts_at_gteq]' => $forecastFrom,
         'q[starts_at_lteq]' => $forecastTo . ' 23:59:59',
-    ]) . '&include[]=custom_fields';
+    ]) . '&include[]=project&include[]=project.custom_fields';
 
-    $projects = $api->fetchAllWithQuery('opportunities', $queryString, 50);
+    $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
-    // Category custom field IDs
+    // Category custom field IDs (on project)
     // 1000074 = Business - Conf, assoc, corporate, exhib
     // 1000075 = Consumer - Entert, consumer, exhib
     $BUSINESS_ID = 1000074;
@@ -50,12 +50,13 @@ try {
     $totalCharges = 0;
     $totalProjects = 0;
 
-    foreach ($projects as $proj) {
+    foreach ($opportunities as $opp) {
         $category = null;
 
-        // Check custom_fields for category array
-        if (isset($proj['custom_fields']['category']) && is_array($proj['custom_fields']['category'])) {
-            $categoryIds = $proj['custom_fields']['category'];
+        // Get category from linked project's custom_fields
+        $project = $opp['project'] ?? null;
+        if ($project && isset($project['custom_fields']['category']) && is_array($project['custom_fields']['category'])) {
+            $categoryIds = $project['custom_fields']['category'];
             if (in_array($BUSINESS_ID, $categoryIds)) {
                 $category = 'Business';
             } elseif (in_array($CONSUMER_ID, $categoryIds)) {
@@ -68,7 +69,7 @@ try {
             continue;
         }
 
-        $charges = floatval($proj['charge_total'] ?? $proj['total'] ?? 0);
+        $charges = floatval($opp['charge_total'] ?? $opp['total'] ?? 0);
 
         if (!isset($categoryData[$category])) {
             $categoryData[$category] = [
