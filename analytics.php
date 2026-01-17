@@ -29,6 +29,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
         })();
     </script>
     <style>
+        /* Prevent horizontal overflow */
+        html, body {
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+        .content {
+            overflow-x: hidden;
+        }
+        .card-body {
+            overflow: hidden;
+        }
+
         /* Date Range Controls */
         .date-controls {
             display: flex;
@@ -165,8 +177,10 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
         /* Product Cards */
         .product-list {
+            display: block;
             max-height: 350px;
             overflow-y: auto;
+            overflow-x: hidden;
         }
         .product-item {
             display: flex;
@@ -175,6 +189,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
             padding: 8px 10px;
             border-bottom: 1px solid var(--gray-200);
             gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
         }
         .product-item:last-child {
             border-bottom: none;
@@ -201,7 +217,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .product-info {
             flex: 1;
             min-width: 0;
-            margin: 0 8px;
+            overflow: hidden;
         }
         .product-name {
             font-weight: 500;
@@ -209,12 +225,14 @@ $subdomain = config('currentrms.subdomain') ?? '';
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 100%;
         }
         .product-value {
             font-weight: 600;
             font-size: 12px;
             color: var(--primary);
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* Owner Accordion */
