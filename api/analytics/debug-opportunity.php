@@ -106,6 +106,8 @@ try {
             'user_id' => $opp['user_id'] ?? null,
             'assigned_to' => $opp['assigned_to'] ?? null,
             'created_by' => $opp['created_by'] ?? null,
+            'owned_by' => $opp['owned_by'] ?? null,
+            'member' => $opp['member'] ?? null,
         ],
         'all_opportunity_keys' => array_keys($oppBase),
         'items' => $itemsDebug,
