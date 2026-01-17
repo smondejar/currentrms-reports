@@ -37,9 +37,10 @@ try {
 
     // Fetch ALL opportunities with items and owner expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
-    // Note: CurrentRMS requires include[] params to be sent separately, so we build URL manually
+    // Use filtermode=all to include all statuses (draft, quote, order, cancelled, etc.)
     $baseParams = [
         'per_page' => 100,
+        'filtermode' => 'all',
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
     ];
@@ -181,6 +182,8 @@ try {
         ],
         'debug' => [
             'total_opportunities_fetched' => count($opportunities),
+            'date_range_used' => $startDate . ' to ' . $endDate,
+            'query_params' => $queryString,
         ],
     ]);
 
