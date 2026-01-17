@@ -49,7 +49,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
             margin-bottom: 0;
         }
         .card-header {
-            padding: 8px 12px;
+            padding: 6px 10px;
         }
         .card-title {
             font-size: 13px;
@@ -58,7 +58,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .card-body {
             overflow: hidden;
             max-width: 100%;
-            padding: 8px 10px;
+            padding: 6px 8px;
         }
 
         /* Date Range Controls - Compact */
@@ -199,7 +199,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .category-table th,
         .category-table td {
-            padding: 6px 8px;
+            padding: 4px 6px;
             text-align: left;
             border-bottom: 1px solid var(--gray-200);
             word-wrap: break-word;
