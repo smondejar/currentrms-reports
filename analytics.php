@@ -29,7 +29,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         })();
     </script>
     <style>
-        /* Prevent horizontal overflow - STRICT */
+        /* Compact Layout */
         * {
             box-sizing: border-box;
         }
@@ -41,35 +41,45 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .content {
             overflow-x: hidden !important;
             max-width: 100% !important;
+            padding: 12px !important;
         }
         .card {
             max-width: 100%;
             overflow: hidden;
+            margin-bottom: 0;
+        }
+        .card-header {
+            padding: 8px 12px;
+        }
+        .card-title {
+            font-size: 13px;
+            margin: 0;
         }
         .card-body {
             overflow: hidden;
             max-width: 100%;
+            padding: 8px 10px;
         }
 
-        /* Date Range Controls */
+        /* Date Range Controls - Compact */
         .date-controls {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             flex-wrap: wrap;
-            padding: 12px 16px;
+            padding: 8px 12px;
             background: var(--card-bg, #fff);
-            border-radius: 8px;
-            margin-bottom: 24px;
+            border-radius: 6px;
+            margin-bottom: 16px;
             box-shadow: var(--shadow-sm);
         }
         .date-quick-btns {
             display: flex;
-            gap: 6px;
+            gap: 4px;
         }
         .date-quick-btns .btn {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
         }
         .date-quick-btns .btn.active {
             background: var(--primary);
@@ -78,28 +88,28 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .date-pickers {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
         .date-pickers input[type="date"] {
-            padding: 6px 8px;
+            padding: 4px 6px;
             border: 1px solid var(--gray-300);
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 4px;
+            font-size: 11px;
             background: var(--input-bg, #fff);
             color: var(--text-color);
-            max-width: 140px;
+            max-width: 120px;
         }
         .date-pickers span {
             color: var(--gray-500);
-            font-size: 12px;
+            font-size: 11px;
         }
         @media (max-width: 600px) {
             .date-controls {
-                padding: 10px 12px;
+                padding: 8px 10px;
             }
             .date-quick-btns .btn {
-                padding: 6px 10px;
-                font-size: 11px;
+                padding: 4px 8px;
+                font-size: 10px;
             }
             .date-pickers {
                 width: 100%;
@@ -111,47 +121,47 @@ $subdomain = config('currentrms.subdomain') ?? '';
             }
         }
 
-        /* Section Headers */
+        /* Section Headers - Compact */
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
             border-bottom: 2px solid var(--primary);
         }
         .section-header h2 {
             margin: 0;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--text-color);
         }
 
-        /* Two Column Layout - Force single column to prevent overflow */
+        /* Two Column Layout - Side by side on larger screens */
         .two-col-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            margin-bottom: 28px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 700px) {
+            .two-col-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
         }
 
-        /* Table Wrapper for horizontal scroll */
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* Category Table - Allow wrapping */
+        /* Category Table - Compact */
         .category-table {
             width: 100%;
             max-width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 12px;
         }
         .category-table th,
         .category-table td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             text-align: left;
             border-bottom: 1px solid var(--gray-200);
             word-wrap: break-word;
@@ -162,7 +172,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
             font-weight: 600;
             color: var(--gray-600);
             text-transform: uppercase;
-            font-size: 10px;
+            font-size: 9px;
             letter-spacing: 0.5px;
         }
         .category-table th:first-child,
@@ -185,21 +195,21 @@ $subdomain = config('currentrms.subdomain') ?? '';
             border-top: 2px solid var(--primary);
         }
 
-        /* Product Cards - Vertical stacked layout */
+        /* Product Cards - Compact vertical stacked layout */
         .product-list {
             display: flex;
             flex-direction: column;
-            max-height: 350px;
+            max-height: 280px;
             overflow-y: auto;
             overflow-x: hidden;
         }
         .product-item {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
-            padding: 8px 10px;
+            align-items: center;
+            padding: 5px 8px;
             border-bottom: 1px solid var(--gray-200);
-            gap: 8px;
+            gap: 6px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -210,15 +220,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
             background: var(--gray-50);
         }
         .product-rank {
-            width: 22px;
-            height: 22px;
-            min-width: 22px;
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
             background: var(--gray-200);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
             flex-shrink: 0;
         }
@@ -233,15 +243,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .product-name {
             font-weight: 500;
-            font-size: 12px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: normal;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             line-height: 1.3;
         }
         .product-value {
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--primary);
             white-space: nowrap;
             flex-shrink: 0;
@@ -1040,6 +1050,9 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
 
         function renderProductList(container, products, type) {
+            // Remove loading placeholder class
+            container.classList.remove('loading-placeholder');
+
             if (!products || products.length === 0) {
                 container.innerHTML = '<p class="text-muted text-center">No product data available</p>';
                 return;

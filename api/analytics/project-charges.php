@@ -30,29 +30,45 @@ try {
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ], 50);
 
-    // Group by category custom field
-    $categoryData = [];
+    // Group by Category custom field (Business vs Consumer)
+    $categoryData = [
+        'Business' => ['name' => 'Business', 'count' => 0, 'charges' => 0],
+        'Consumer' => ['name' => 'Consumer', 'count' => 0, 'charges' => 0],
+    ];
     $totalCharges = 0;
     $totalProjects = 0;
 
     foreach ($opportunities as $opp) {
-        // Get category from custom fields or a relevant field
-        $category = 'Uncategorized';
+        // Get category from custom fields - look for "Category" field
+        $category = null;
 
-        // Check for custom fields that might contain category
         if (isset($opp['custom_fields']) && is_array($opp['custom_fields'])) {
             foreach ($opp['custom_fields'] as $field) {
                 $fieldName = strtolower($field['name'] ?? '');
-                if (strpos($fieldName, 'category') !== false || strpos($fieldName, 'type') !== false) {
-                    $category = $field['value'] ?? 'Uncategorized';
+                if ($fieldName === 'category' || $fieldName === 'categories') {
+                    $value = $field['value'] ?? '';
+                    // Map to Business or Consumer based on value
+                    $valueLower = strtolower($value);
+                    if (strpos($valueLower, 'business') !== false ||
+                        strpos($valueLower, 'conf') !== false ||
+                        strpos($valueLower, 'assoc') !== false ||
+                        strpos($valueLower, 'corporate') !== false ||
+                        strpos($valueLower, 'exhib') !== false) {
+                        $category = 'Business';
+                    } elseif (strpos($valueLower, 'consumer') !== false ||
+                              strpos($valueLower, 'entert') !== false) {
+                        $category = 'Consumer';
+                    } else {
+                        $category = $value ?: null; // Use the raw value if no match
+                    }
                     break;
                 }
             }
         }
 
-        // Fallback to opportunity type or status
-        if ($category === 'Uncategorized') {
-            $category = $opp['opportunity_type_name'] ?? $opp['status_name'] ?? 'Uncategorized';
+        // Skip if no category found
+        if (!$category) {
+            continue;
         }
 
         // Get charges
