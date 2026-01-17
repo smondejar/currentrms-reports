@@ -29,16 +29,26 @@ $subdomain = config('currentrms.subdomain') ?? '';
         })();
     </script>
     <style>
-        /* Prevent horizontal overflow */
+        /* Prevent horizontal overflow - STRICT */
+        * {
+            box-sizing: border-box;
+        }
         html, body {
-            overflow-x: hidden;
-            max-width: 100vw;
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+            width: 100% !important;
         }
         .content {
-            overflow-x: hidden;
+            overflow-x: hidden !important;
+            max-width: 100% !important;
+        }
+        .card {
+            max-width: 100%;
+            overflow: hidden;
         }
         .card-body {
             overflow: hidden;
+            max-width: 100%;
         }
 
         /* Date Range Controls */
@@ -117,18 +127,12 @@ $subdomain = config('currentrms.subdomain') ?? '';
             color: var(--text-color);
         }
 
-        /* Two Column Layout */
+        /* Two Column Layout - Force single column to prevent overflow */
         .two-col-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
             margin-bottom: 28px;
-        }
-        @media (max-width: 768px) {
-            .two-col-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
         }
 
         /* Table Wrapper for horizontal scroll */
@@ -137,10 +141,11 @@ $subdomain = config('currentrms.subdomain') ?? '';
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Category Table */
+        /* Category Table - Allow wrapping */
         .category-table {
             width: 100%;
-            min-width: 280px;
+            max-width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             font-size: 13px;
         }
@@ -149,7 +154,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
             padding: 8px 10px;
             text-align: left;
             border-bottom: 1px solid var(--gray-200);
-            white-space: nowrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .category-table th {
             background: var(--gray-100);
@@ -159,10 +165,14 @@ $subdomain = config('currentrms.subdomain') ?? '';
             font-size: 10px;
             letter-spacing: 0.5px;
         }
+        .category-table th:first-child,
         .category-table td:first-child {
-            white-space: normal;
-            word-break: break-word;
-            max-width: 150px;
+            width: 50%;
+        }
+        .category-table th:not(:first-child),
+        .category-table td:not(:first-child) {
+            width: 25%;
+            text-align: right;
         }
         .category-table tr:hover td {
             background: var(--gray-50);
@@ -175,17 +185,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
             border-top: 2px solid var(--primary);
         }
 
-        /* Product Cards */
+        /* Product Cards - Vertical stacked layout */
         .product-list {
-            display: block;
+            display: flex;
+            flex-direction: column;
             max-height: 350px;
             overflow-y: auto;
             overflow-x: hidden;
         }
         .product-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: row;
+            align-items: flex-start;
             padding: 8px 10px;
             border-bottom: 1px solid var(--gray-200);
             gap: 8px;
@@ -201,6 +212,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .product-rank {
             width: 22px;
             height: 22px;
+            min-width: 22px;
             background: var(--gray-200);
             border-radius: 50%;
             display: flex;
@@ -222,10 +234,10 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .product-name {
             font-weight: 500;
             font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
         }
         .product-value {
             font-weight: 600;
@@ -233,6 +245,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
             color: var(--primary);
             white-space: nowrap;
             flex-shrink: 0;
+            margin-left: auto;
         }
 
         /* Owner Accordion */
