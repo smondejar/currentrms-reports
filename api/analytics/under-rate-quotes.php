@@ -37,9 +37,10 @@ try {
 
     // Fetch opportunities with items and owner expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
-    // Remove state filter for now to get all opportunities, then filter in PHP
+    // Use filtermode=all to get ALL opportunities, then filter out dead in PHP
     $baseParams = [
         'per_page' => 100,
+        'filtermode' => 'all',
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
     ];

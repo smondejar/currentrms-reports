@@ -25,9 +25,11 @@ try {
     $limit = intval($_GET['limit'] ?? 20);
     $limit = min(100, max(1, $limit));
 
-    // Build query string - get opportunities in date range
+    // Build query string - get ALL opportunities in date range
+    // Use filtermode=all to get all opportunities, then filter out dead in PHP
     $baseParams = [
         'per_page' => 100,
+        'filtermode' => 'all',
         'q[starts_at_gteq]' => $fromDate,
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ];
