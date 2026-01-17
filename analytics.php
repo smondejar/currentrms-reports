@@ -287,42 +287,75 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .owner-content {
             display: none;
             background: var(--card-bg);
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            max-height: 400px;
+            overflow-y: auto;
         }
         .owner-content.expanded {
             display: block;
         }
-        .owner-items-table {
-            width: 100%;
-            min-width: 500px;
-            font-size: 11px;
-            border-collapse: collapse;
-        }
-        .owner-items-table th,
-        .owner-items-table td {
-            padding: 6px 8px;
-            text-align: left;
+        /* Card-based item layout */
+        .discount-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 12px;
             border-bottom: 1px solid var(--gray-100);
-            white-space: nowrap;
+            align-items: flex-start;
         }
-        .owner-items-table th {
+        .discount-item:last-child {
+            border-bottom: none;
+        }
+        .discount-item:hover {
             background: var(--gray-50);
+        }
+        .discount-item-main {
+            flex: 1;
+            min-width: 150px;
+        }
+        .discount-item-opp {
             font-weight: 500;
-            color: var(--gray-600);
+            font-size: 12px;
+            color: var(--primary);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .discount-item-opp:hover {
+            text-decoration: underline;
+        }
+        .discount-item-product {
+            font-size: 11px;
+            color: var(--text-color);
+            margin-bottom: 2px;
+        }
+        .discount-item-meta {
             font-size: 10px;
-            position: sticky;
-            top: 0;
+            color: var(--gray-500);
         }
-        .owner-items-table td:first-child {
-            max-width: 120px;
-            white-space: normal;
-            word-break: break-word;
+        .discount-item-values {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
         }
-        .owner-items-table td:nth-child(3) {
-            max-width: 100px;
-            white-space: normal;
-            word-break: break-word;
+        .discount-val {
+            text-align: right;
+            min-width: 60px;
+        }
+        .discount-val-label {
+            font-size: 9px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+        }
+        .discount-val-amount {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .discount-val-amount.highlight {
+            color: var(--primary);
+        }
+        .discount-val-amount.danger {
+            color: var(--danger);
         }
         @media (max-width: 600px) {
             .owner-header {
@@ -337,14 +370,20 @@ $subdomain = config('currentrms.subdomain') ?? '';
             .owner-toggle {
                 position: absolute;
                 right: 12px;
-                top: 50%;
-                transform: translateY(-50%);
+                top: 12px;
             }
             .owner-header.expanded .owner-toggle {
-                transform: translateY(-50%) rotate(180deg);
+                transform: rotate(180deg);
             }
             .owner-item {
                 position: relative;
+            }
+            .discount-item {
+                flex-direction: column;
+            }
+            .discount-item-values {
+                width: 100%;
+                justify-content: space-between;
             }
         }
 
@@ -1098,45 +1137,36 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 return '<p class="text-muted text-center" style="padding: 16px;">No items</p>';
             }
 
-            let html = `
-                <table class="owner-items-table">
-                    <thead>
-                        <tr>
-                            <th>Opportunity</th>
-                            <th>Status</th>
-                            <th>Item</th>
-                            <th style="text-align: right;">Price</th>
-                            <th style="text-align: right;">Charged</th>
-                            <th style="text-align: right;">Discount</th>
-                            <th style="text-align: right;">Lost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let html = '<div class="discount-items-list">';
 
             items.slice(0, 50).forEach(item => {
                 const startsAt = item.starts_at ? new Date(item.starts_at).toLocaleDateString() : '-';
-                const discountClass = item.discount_percent >= 50 ? 'text-danger' : (item.discount_percent >= 25 ? 'text-warning' : '');
+                const discountClass = item.discount_percent >= 50 ? 'danger' : (item.discount_percent >= 25 ? 'highlight' : '');
 
                 html += `
-                    <tr>
-                        <td>
-                            <a href="https://${subdomain}.current-rms.com/opportunities/${item.opportunity_id}" target="_blank" style="font-weight: 500;">
-                                ${escapeHtml((item.opportunity_subject || '').substring(0, 25))}${(item.opportunity_subject || '').length > 25 ? '...' : ''}
+                    <div class="discount-item">
+                        <div class="discount-item-main">
+                            <a href="https://${subdomain}.current-rms.com/opportunities/${item.opportunity_id}" target="_blank" class="discount-item-opp">
+                                ${escapeHtml((item.opportunity_subject || '').substring(0, 35))}${(item.opportunity_subject || '').length > 35 ? '...' : ''}
                             </a>
-                            <div style="font-size: 10px; color: var(--gray-500);">${startsAt}</div>
-                        </td>
-                        <td>${getStatusBadge(item.opportunity_status)}</td>
-                        <td title="${escapeHtml(item.item_name || '')}">${escapeHtml((item.item_name || '').substring(0, 25))}${(item.item_name || '').length > 25 ? '...' : ''}</td>
-                        <td style="text-align: right;">${currencySymbol}${(item.price || 0).toFixed(2)}</td>
-                        <td style="text-align: right;">${currencySymbol}${(item.charge_total || 0).toFixed(2)}</td>
-                        <td style="text-align: right;" class="${discountClass}"><strong>${item.discount_percent}%</strong></td>
-                        <td style="text-align: right;" class="text-danger">${currencySymbol}${(item.lost_revenue || 0).toFixed(2)}</td>
-                    </tr>
+                            <div class="discount-item-product">${escapeHtml((item.item_name || '').substring(0, 40))}${(item.item_name || '').length > 40 ? '...' : ''}</div>
+                            <div class="discount-item-meta">${startsAt} &bull; ${getStatusBadge(item.opportunity_status)}</div>
+                        </div>
+                        <div class="discount-item-values">
+                            <div class="discount-val">
+                                <div class="discount-val-label">Discount</div>
+                                <div class="discount-val-amount ${discountClass}">${item.discount_percent}%</div>
+                            </div>
+                            <div class="discount-val">
+                                <div class="discount-val-label">Lost</div>
+                                <div class="discount-val-amount danger">${currencySymbol}${(item.lost_revenue || 0).toFixed(0)}</div>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
 
-            html += '</tbody></table>';
+            html += '</div>';
 
             if (items.length > 50) {
                 html += `<p class="text-muted text-center" style="font-size: 11px; padding: 8px;">Showing 50 of ${items.length} items</p>`;
