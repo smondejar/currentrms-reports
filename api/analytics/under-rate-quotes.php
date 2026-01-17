@@ -35,11 +35,16 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // First, fetch all users to build a lookup map
-    $users = $api->fetchAll('users', ['per_page' => 100], 10);
+    // First, fetch all staff members to build a lookup map for owners
     $userMap = [];
-    foreach ($users as $user) {
-        $userMap[$user['id']] = $user['name'] ?? ($user['email'] ?? 'User #' . $user['id']);
+    try {
+        $staffMembers = $api->fetchAll('staff_members', ['per_page' => 100], 10);
+        foreach ($staffMembers as $staff) {
+            $userMap[$staff['id']] = $staff['name'] ?? ($staff['email'] ?? 'Staff #' . $staff['id']);
+        }
+    } catch (Exception $e) {
+        // If staff_members endpoint fails, we'll show owner IDs instead
+        error_log('Failed to fetch staff_members: ' . $e->getMessage());
     }
 
     // Fetch ALL opportunities with items - no status filter
@@ -60,7 +65,7 @@ try {
 
         // Get owner from owned_by field (user ID) and look up in userMap
         $ownerId = $opp['owned_by'] ?? $opp['owner_id'] ?? 0;
-        $owner = $userMap[$ownerId] ?? 'Unknown Owner';
+        $owner = $userMap[$ownerId] ?? ($ownerId ? "Owner #$ownerId" : 'Unknown Owner');
         $oppStatus = $opp['status_name'] ?? $opp['status'] ?? $opp['state'] ?? 'Unknown';
         $startsAt = $opp['starts_at'] ?? null;
         $customer = $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? ($opp['subject'] ?? 'Unknown Customer'));
