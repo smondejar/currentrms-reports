@@ -35,6 +35,13 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
+    // First, fetch all users to build a lookup map
+    $users = $api->fetchAll('users', ['per_page' => 100], 10);
+    $userMap = [];
+    foreach ($users as $user) {
+        $userMap[$user['id']] = $user['name'] ?? ($user['email'] ?? 'User #' . $user['id']);
+    }
+
     // Fetch ALL opportunities with items - no status filter
     // Filter by starts_at to get opportunities in our date range (past and future)
     $opportunities = $api->fetchAll('opportunities', [
@@ -51,16 +58,9 @@ try {
     foreach ($opportunities as $opp) {
         $items = $opp['opportunity_items'] ?? [];
 
-        // Get owner from owned_by field (CurrentRMS nested object)
-        $ownedBy = $opp['owned_by'] ?? null;
-        if ($ownedBy && is_array($ownedBy)) {
-            $owner = $ownedBy['name'] ?? ($ownedBy['email'] ?? 'Unknown Owner');
-            $ownerId = $ownedBy['id'] ?? 0;
-        } else {
-            // Fallback to other possible fields
-            $owner = $opp['owner']['name'] ?? ($opp['owner_name'] ?? 'Unknown Owner');
-            $ownerId = $opp['owner_id'] ?? $opp['owner']['id'] ?? 0;
-        }
+        // Get owner from owned_by field (user ID) and look up in userMap
+        $ownerId = $opp['owned_by'] ?? $opp['owner_id'] ?? 0;
+        $owner = $userMap[$ownerId] ?? 'Unknown Owner';
         $oppStatus = $opp['status_name'] ?? $opp['status'] ?? $opp['state'] ?? 'Unknown';
         $startsAt = $opp['starts_at'] ?? null;
         $customer = $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? ($opp['subject'] ?? 'Unknown Customer'));
