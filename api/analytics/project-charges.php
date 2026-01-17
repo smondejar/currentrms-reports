@@ -86,6 +86,18 @@ try {
         return $b['charges'] <=> $a['charges'];
     });
 
+    // Debug: show first project's custom_fields structure
+    $debugInfo = null;
+    if (!empty($projects)) {
+        $firstProj = $projects[0];
+        $debugInfo = [
+            'project_id' => $firstProj['id'] ?? null,
+            'custom_fields_keys' => isset($firstProj['custom_fields']) ? array_keys($firstProj['custom_fields']) : 'NOT SET',
+            'custom_fields_raw' => $firstProj['custom_fields'] ?? 'NOT SET',
+            'total_projects_fetched' => count($projects),
+        ];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => [
@@ -97,6 +109,7 @@ try {
             'from' => $fromDate,
             'to' => $toDate,
         ],
+        'debug' => $debugInfo,
     ]);
 
 } catch (Exception $e) {
