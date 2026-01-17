@@ -77,6 +77,25 @@ try {
     // Limit results
     $topProducts = array_slice($productUsage, 0, $limit);
 
+    // Count total items processed
+    $totalItemsProcessed = 0;
+    foreach ($opportunities as $opp) {
+        $totalItemsProcessed += count($opp['opportunity_items'] ?? []);
+    }
+
+    // Sample debug data
+    $debugSamples = [];
+    foreach (array_slice($opportunities, 0, 3) as $opp) {
+        $items = $opp['opportunity_items'] ?? [];
+        $debugSamples[] = [
+            'opp_id' => $opp['id'],
+            'subject' => $opp['subject'] ?? null,
+            'starts_at' => $opp['starts_at'] ?? null,
+            'status' => $opp['status_name'] ?? $opp['status'] ?? null,
+            'item_count' => count($items),
+        ];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => $topProducts,
@@ -88,6 +107,13 @@ try {
         'meta' => [
             'total_products' => count($productUsage),
             'opportunities_analyzed' => count($opportunities),
+        ],
+        'debug' => [
+            'opportunities_fetched' => count($opportunities),
+            'total_items_in_opportunities' => $totalItemsProcessed,
+            'unique_products_found' => count($productUsage),
+            'date_range' => $fromDate . ' to ' . $toDate,
+            'samples' => $debugSamples,
         ],
     ]);
 

@@ -1123,6 +1123,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 console.log('Loading products by charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
                 const data = await response.json();
+                console.log('Products by Charges DEBUG:', data.debug);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
@@ -1154,6 +1155,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 console.log('Loading products by utilisation with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
                 const data = await response.json();
+                console.log('Products by Utilisation DEBUG:', data.debug);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 

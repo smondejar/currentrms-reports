@@ -84,6 +84,32 @@ try {
         $product['charges'] = round($product['charges'], 2);
     }
 
+    // Count total items processed
+    $totalItemsProcessed = 0;
+    foreach ($opportunities as $opp) {
+        $totalItemsProcessed += count($opp['opportunity_items'] ?? []);
+    }
+
+    // Sample debug data
+    $debugSamples = [];
+    foreach (array_slice($opportunities, 0, 3) as $opp) {
+        $items = $opp['opportunity_items'] ?? [];
+        $debugSamples[] = [
+            'opp_id' => $opp['id'],
+            'subject' => $opp['subject'] ?? null,
+            'starts_at' => $opp['starts_at'] ?? null,
+            'status' => $opp['status_name'] ?? $opp['status'] ?? null,
+            'item_count' => count($items),
+            'sample_items' => array_slice(array_map(function($item) {
+                return [
+                    'name' => $item['name'] ?? $item['product_name'] ?? 'Unknown',
+                    'quantity' => $item['quantity'] ?? 0,
+                    'charge_total' => $item['charge_total'] ?? $item['total'] ?? 0,
+                ];
+            }, $items), 0, 2),
+        ];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => $topProducts,
@@ -95,6 +121,13 @@ try {
         'meta' => [
             'total_products' => count($productCharges),
             'opportunities_analyzed' => count($opportunities),
+        ],
+        'debug' => [
+            'opportunities_fetched' => count($opportunities),
+            'total_items_in_opportunities' => $totalItemsProcessed,
+            'unique_products_found' => count($productCharges),
+            'date_range' => $fromDate . ' to ' . $toDate,
+            'samples' => $debugSamples,
         ],
     ]);
 
