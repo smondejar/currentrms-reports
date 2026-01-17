@@ -35,7 +35,7 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // Fetch ALL opportunities with items and owned_by expanded
+    // Fetch ALL opportunities with items and owner expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
     // Note: CurrentRMS requires include[] params to be sent separately, so we build URL manually
     $baseParams = [
@@ -44,7 +44,7 @@ try {
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
     ];
     // Add multiple include params by appending to query string
-    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items&include[]=owned_by';
+    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items&include[]=owner';
 
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
@@ -55,15 +55,14 @@ try {
     foreach ($opportunities as $opp) {
         $items = $opp['opportunity_items'] ?? [];
 
-        // Get owner from owned_by field (expanded object when included)
-        $ownedBy = $opp['owned_by'] ?? null;
-        if (is_array($ownedBy)) {
-            // Expanded object with name
-            $owner = $ownedBy['name'] ?? ($ownedBy['email'] ?? 'Unknown Owner');
-            $ownerId = $ownedBy['id'] ?? 0;
+        // Get owner from the 'owner' field (already expanded object in CurrentRMS)
+        $ownerObj = $opp['owner'] ?? null;
+        if (is_array($ownerObj) && isset($ownerObj['name'])) {
+            $owner = $ownerObj['name'];
+            $ownerId = $ownerObj['id'] ?? 0;
         } else {
-            // Just an ID (fallback)
-            $ownerId = $ownedBy ?? 0;
+            // Fallback to owned_by ID
+            $ownerId = $opp['owned_by'] ?? 0;
             $owner = $ownerId ? "Owner #$ownerId" : 'Unknown Owner';
         }
         $oppStatus = $opp['status_name'] ?? $opp['status'] ?? $opp['state'] ?? 'Unknown';
