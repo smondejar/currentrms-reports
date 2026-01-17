@@ -33,9 +33,9 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .date-controls {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             flex-wrap: wrap;
-            padding: 16px 20px;
+            padding: 12px 16px;
             background: var(--card-bg, #fff);
             border-radius: 8px;
             margin-bottom: 24px;
@@ -43,11 +43,11 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .date-quick-btns {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
         .date-quick-btns .btn {
-            padding: 8px 16px;
-            font-size: 13px;
+            padding: 6px 12px;
+            font-size: 12px;
         }
         .date-quick-btns .btn.active {
             background: var(--primary);
@@ -56,19 +56,37 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .date-pickers {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .date-pickers input[type="date"] {
-            padding: 8px 12px;
+            padding: 6px 8px;
             border: 1px solid var(--gray-300);
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
             background: var(--input-bg, #fff);
             color: var(--text-color);
+            max-width: 140px;
         }
         .date-pickers span {
             color: var(--gray-500);
-            font-size: 13px;
+            font-size: 12px;
+        }
+        @media (max-width: 600px) {
+            .date-controls {
+                padding: 10px 12px;
+            }
+            .date-quick-btns .btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            .date-pickers {
+                width: 100%;
+                justify-content: center;
+            }
+            .date-pickers input[type="date"] {
+                flex: 1;
+                max-width: none;
+            }
         }
 
         /* Section Headers */
@@ -82,7 +100,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .section-header h2 {
             margin: 0;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             color: var(--text-color);
         }
@@ -91,34 +109,48 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .two-col-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 32px;
+            gap: 20px;
+            margin-bottom: 28px;
         }
-        @media (max-width: 900px) {
+        @media (max-width: 768px) {
             .two-col-grid {
                 grid-template-columns: 1fr;
+                gap: 16px;
             }
+        }
+
+        /* Table Wrapper for horizontal scroll */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Category Table */
         .category-table {
             width: 100%;
+            min-width: 280px;
             border-collapse: collapse;
             font-size: 13px;
         }
         .category-table th,
         .category-table td {
-            padding: 10px 12px;
+            padding: 8px 10px;
             text-align: left;
             border-bottom: 1px solid var(--gray-200);
+            white-space: nowrap;
         }
         .category-table th {
             background: var(--gray-100);
             font-weight: 600;
             color: var(--gray-600);
             text-transform: uppercase;
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 0.5px;
+        }
+        .category-table td:first-child {
+            white-space: normal;
+            word-break: break-word;
+            max-width: 150px;
         }
         .category-table tr:hover td {
             background: var(--gray-50);
@@ -133,15 +165,16 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
         /* Product Cards */
         .product-list {
-            max-height: 400px;
+            max-height: 350px;
             overflow-y: auto;
         }
         .product-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-bottom: 1px solid var(--gray-200);
+            gap: 8px;
         }
         .product-item:last-child {
             border-bottom: none;
@@ -150,16 +183,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
             background: var(--gray-50);
         }
         .product-rank {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             background: var(--gray-200);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
-            margin-right: 12px;
             flex-shrink: 0;
         }
         .product-rank.top-3 {
@@ -169,18 +201,20 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .product-info {
             flex: 1;
             min-width: 0;
+            margin: 0 8px;
         }
         .product-name {
             font-weight: 500;
-            font-size: 13px;
+            font-size: 12px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .product-value {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 12px;
             color: var(--primary);
+            white-space: nowrap;
         }
 
         /* Owner Accordion */
@@ -199,10 +233,11 @@ $subdomain = config('currentrms.subdomain') ?? '';
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
+            padding: 10px 12px;
             cursor: pointer;
             background: var(--gray-50);
             transition: background 0.2s;
+            gap: 12px;
         }
         .owner-header:hover {
             background: var(--gray-100);
@@ -213,13 +248,16 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .owner-name {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
+            flex-shrink: 0;
         }
         .owner-stats {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
         .owner-stats .stat {
             display: flex;
@@ -228,110 +266,174 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
         .owner-stats .stat-label {
             color: var(--gray-500);
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
         }
         .owner-stats .stat-value {
             font-weight: 600;
+            font-size: 12px;
         }
         .owner-stats .stat-value.danger {
             color: var(--danger);
         }
         .owner-toggle {
-            margin-left: 12px;
+            margin-left: 8px;
             transition: transform 0.2s;
+            flex-shrink: 0;
         }
         .owner-header.expanded .owner-toggle {
             transform: rotate(180deg);
         }
         .owner-content {
             display: none;
-            padding: 0;
             background: var(--card-bg);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .owner-content.expanded {
             display: block;
         }
         .owner-items-table {
             width: 100%;
-            font-size: 12px;
+            min-width: 500px;
+            font-size: 11px;
+            border-collapse: collapse;
         }
         .owner-items-table th,
         .owner-items-table td {
-            padding: 8px 12px;
+            padding: 6px 8px;
             text-align: left;
             border-bottom: 1px solid var(--gray-100);
+            white-space: nowrap;
         }
         .owner-items-table th {
             background: var(--gray-50);
             font-weight: 500;
             color: var(--gray-600);
+            font-size: 10px;
+            position: sticky;
+            top: 0;
+        }
+        .owner-items-table td:first-child {
+            max-width: 120px;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .owner-items-table td:nth-child(3) {
+            max-width: 100px;
+            white-space: normal;
+            word-break: break-word;
+        }
+        @media (max-width: 600px) {
+            .owner-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .owner-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .owner-toggle {
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+            .owner-header.expanded .owner-toggle {
+                transform: translateY(-50%) rotate(180deg);
+            }
+            .owner-item {
+                position: relative;
+            }
         }
 
         /* Under-Rate Date Controls */
         .under-rate-controls {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             flex-wrap: wrap;
             margin-bottom: 16px;
-            padding: 12px 16px;
+            padding: 10px 12px;
             background: var(--gray-50);
             border-radius: 6px;
         }
         .control-group {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .control-group label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--gray-600);
             white-space: nowrap;
         }
         .control-group input,
         .control-group select {
-            padding: 6px 10px;
+            padding: 5px 8px;
             border: 1px solid var(--gray-300);
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             background: var(--input-bg, #fff);
             color: var(--text-color);
+        }
+        @media (max-width: 500px) {
+            .control-group {
+                flex: 1 1 45%;
+            }
+            .control-group:last-of-type {
+                flex: 1 1 100%;
+            }
         }
 
         /* Summary Cards */
         .summary-cards {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
         @media (max-width: 768px) {
             .summary-cards {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+        @media (max-width: 400px) {
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+        }
         .summary-card {
             background: var(--card-bg);
             border: 1px solid var(--gray-200);
             border-radius: 8px;
-            padding: 16px;
+            padding: 12px;
             text-align: center;
         }
         .summary-card .label {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--gray-500);
             margin-bottom: 4px;
         }
         .summary-card .value {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 700;
             color: var(--text-color);
         }
         .summary-card .value.danger {
             color: var(--danger);
+        }
+        @media (max-width: 500px) {
+            .summary-card {
+                padding: 10px 8px;
+            }
+            .summary-card .value {
+                font-size: 16px;
+            }
         }
 
         /* Badge Styles */
