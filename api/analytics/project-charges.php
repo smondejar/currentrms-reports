@@ -30,36 +30,31 @@ try {
         'q[starts_at_lteq]' => $toDate . ' 23:59:59',
     ], 50);
 
-    // Group by Category custom field (Business vs Consumer)
+    // Group by "Event category" custom field (Business vs Consumer)
     $categoryData = [
-        'Business' => ['name' => 'Business', 'count' => 0, 'charges' => 0],
-        'Consumer' => ['name' => 'Consumer', 'count' => 0, 'charges' => 0],
+        'Business' => ['name' => 'Business - Conf, assoc, corporate, exhib', 'count' => 0, 'charges' => 0],
+        'Consumer' => ['name' => 'Consumer - Entert, consumer, exhib', 'count' => 0, 'charges' => 0],
     ];
     $totalCharges = 0;
     $totalProjects = 0;
 
     foreach ($opportunities as $opp) {
-        // Get category from custom fields - look for "Category" field
+        // Get category from custom fields - look for "Event category" field
         $category = null;
 
         if (isset($opp['custom_fields']) && is_array($opp['custom_fields'])) {
             foreach ($opp['custom_fields'] as $field) {
-                $fieldName = strtolower($field['name'] ?? '');
-                if ($fieldName === 'category' || $fieldName === 'categories') {
-                    $value = $field['value'] ?? '';
-                    // Map to Business or Consumer based on value
+                $fieldName = strtolower(trim($field['name'] ?? ''));
+                // Match "event category" field
+                if ($fieldName === 'event category' || $fieldName === 'event_category' ||
+                    $fieldName === 'category' || $fieldName === 'categories') {
+                    $value = trim($field['value'] ?? '');
                     $valueLower = strtolower($value);
-                    if (strpos($valueLower, 'business') !== false ||
-                        strpos($valueLower, 'conf') !== false ||
-                        strpos($valueLower, 'assoc') !== false ||
-                        strpos($valueLower, 'corporate') !== false ||
-                        strpos($valueLower, 'exhib') !== false) {
+                    // Match by checking if value starts with Business or Consumer
+                    if (strpos($valueLower, 'business') === 0) {
                         $category = 'Business';
-                    } elseif (strpos($valueLower, 'consumer') !== false ||
-                              strpos($valueLower, 'entert') !== false) {
+                    } elseif (strpos($valueLower, 'consumer') === 0) {
                         $category = 'Consumer';
-                    } else {
-                        $category = $value ?: null; // Use the raw value if no match
                     }
                     break;
                 }

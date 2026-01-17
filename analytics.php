@@ -684,8 +684,13 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
                     <!-- Project Forecast -->
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <h3 class="card-title">Project Forecast</h3>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <label style="font-size: 10px; color: var(--gray-500);">Days ahead:</label>
+                                <input type="number" id="forecast-days" value="90" min="7" max="365" style="width: 55px; padding: 2px 4px; font-size: 11px; border: 1px solid var(--gray-300); border-radius: 3px;">
+                                <button class="btn btn-sm" onclick="loadProjectForecast()" style="padding: 2px 6px; font-size: 10px;">Go</button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div id="project-forecast-table" class="loading-placeholder">
@@ -947,22 +952,22 @@ $subdomain = config('currentrms.subdomain') ?? '';
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
+                const forecastDays = document.getElementById('forecast-days')?.value || 90;
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to
+                    days: forecastDays
                 });
                 const response = await fetch(`api/analytics/project-forecast.php?${params}`);
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
-                renderProjectForecast(data.data);
+                renderProjectForecast(data.data, data.filters);
             } catch (error) {
                 container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
             }
         }
 
-        function renderProjectForecast(data) {
+        function renderProjectForecast(data, filters) {
             const container = document.getElementById('project-forecast-table');
 
             if (!data.categories || data.categories.length === 0) {
@@ -970,7 +975,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 return;
             }
 
-            let html = `
+            // Format date range
+            let dateInfo = '';
+            if (filters && filters.forecast_from && filters.forecast_to) {
+                const fromDate = new Date(filters.forecast_from).toLocaleDateString();
+                const toDate = new Date(filters.forecast_to).toLocaleDateString();
+                dateInfo = `<div style="font-size: 10px; color: var(--gray-500); margin-bottom: 6px;">${fromDate} - ${toDate}</div>`;
+            }
+
+            let html = dateInfo + `
                 <table class="category-table">
                     <thead>
                         <tr>

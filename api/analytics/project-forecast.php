@@ -19,18 +19,13 @@ try {
         throw new Exception('API client not configured');
     }
 
-    // Get date range from request to calculate the forecast period
-    $fromDate = $_GET['from'] ?? date('Y-m-d', strtotime('-90 days'));
-    $toDate = $_GET['to'] ?? date('Y-m-d');
+    // Get days ahead from request (default 90 days)
+    $daysAhead = intval($_GET['days'] ?? 90);
+    $daysAhead = max(7, min(365, $daysAhead)); // Clamp between 7 and 365
 
-    // Calculate days in the range to project forward the same duration
-    $fromTs = strtotime($fromDate);
-    $toTs = strtotime($toDate);
-    $daysDiff = max(1, floor(($toTs - $fromTs) / 86400));
-
-    // Forecast period: from today to today + daysDiff
+    // Forecast period: from today to today + daysAhead
     $forecastFrom = date('Y-m-d');
-    $forecastTo = date('Y-m-d', strtotime("+{$daysDiff} days"));
+    $forecastTo = date('Y-m-d', strtotime("+{$daysAhead} days"));
 
     // Fetch future opportunities
     $opportunities = $api->fetchAll('opportunities', [
@@ -39,36 +34,31 @@ try {
         'q[starts_at_lteq]' => $forecastTo . ' 23:59:59',
     ], 50);
 
-    // Group by Category custom field (Business vs Consumer)
+    // Group by "Event category" custom field (Business vs Consumer)
     $categoryData = [
-        'Business' => ['name' => 'Business', 'count' => 0, 'charges' => 0],
-        'Consumer' => ['name' => 'Consumer', 'count' => 0, 'charges' => 0],
+        'Business' => ['name' => 'Business - Conf, assoc, corporate, exhib', 'count' => 0, 'charges' => 0],
+        'Consumer' => ['name' => 'Consumer - Entert, consumer, exhib', 'count' => 0, 'charges' => 0],
     ];
     $totalCharges = 0;
     $totalProjects = 0;
 
     foreach ($opportunities as $opp) {
-        // Get category from custom fields - look for "Category" field
+        // Get category from custom fields - look for "Event category" field
         $category = null;
 
         if (isset($opp['custom_fields']) && is_array($opp['custom_fields'])) {
             foreach ($opp['custom_fields'] as $field) {
-                $fieldName = strtolower($field['name'] ?? '');
-                if ($fieldName === 'category' || $fieldName === 'categories') {
-                    $value = $field['value'] ?? '';
-                    // Map to Business or Consumer based on value
+                $fieldName = strtolower(trim($field['name'] ?? ''));
+                // Match "event category" field
+                if ($fieldName === 'event category' || $fieldName === 'event_category' ||
+                    $fieldName === 'category' || $fieldName === 'categories') {
+                    $value = trim($field['value'] ?? '');
                     $valueLower = strtolower($value);
-                    if (strpos($valueLower, 'business') !== false ||
-                        strpos($valueLower, 'conf') !== false ||
-                        strpos($valueLower, 'assoc') !== false ||
-                        strpos($valueLower, 'corporate') !== false ||
-                        strpos($valueLower, 'exhib') !== false) {
+                    // Match by checking if value starts with Business or Consumer
+                    if (strpos($valueLower, 'business') === 0) {
                         $category = 'Business';
-                    } elseif (strpos($valueLower, 'consumer') !== false ||
-                              strpos($valueLower, 'entert') !== false) {
+                    } elseif (strpos($valueLower, 'consumer') === 0) {
                         $category = 'Consumer';
-                    } else {
-                        $category = $value ?: null;
                     }
                     break;
                 }
@@ -111,7 +101,7 @@ try {
         'filters' => [
             'forecast_from' => $forecastFrom,
             'forecast_to' => $forecastTo,
-            'days_ahead' => $daysDiff,
+            'days_ahead' => $daysAhead,
         ],
     ]);
 
