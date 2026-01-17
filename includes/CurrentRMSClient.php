@@ -167,6 +167,7 @@ class CurrentRMSClient
     {
         $allResults = [];
         $page = 1;
+        $this->lastFetchMeta = null; // Store meta for debugging
 
         do {
             $pageQuery = $queryString . '&page=' . $page;
@@ -179,12 +180,28 @@ class CurrentRMSClient
 
             $meta = $response['meta'] ?? [];
             $totalPages = $meta['total_pages'] ?? 1;
+
+            // Store meta from first page for debugging
+            if ($page === 1) {
+                $this->lastFetchMeta = $meta;
+            }
+
             $page++;
 
         } while ($page <= $totalPages && $page <= $maxPages);
 
         return $allResults;
     }
+
+    /**
+     * Get meta data from the last fetchAll call (for debugging)
+     */
+    public function getLastFetchMeta(): ?array
+    {
+        return $this->lastFetchMeta ?? null;
+    }
+
+    private ?array $lastFetchMeta = null;
 
     /**
      * Make a GET request with a raw query string

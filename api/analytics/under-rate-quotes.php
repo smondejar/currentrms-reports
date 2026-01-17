@@ -48,6 +48,7 @@ try {
         . '&include[]=opportunity_items&include[]=owner';
 
     $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
+    $apiMeta = $api->getLastFetchMeta();
 
     $underRateItems = [];
     $ownerSummary = [];
@@ -202,17 +203,11 @@ try {
             'future_days_used' => $futureDays,
             'calculated_start_date' => $startDate,
             'calculated_end_date' => $endDate,
+            'api_meta' => $apiMeta,
             'total_opportunities_fetched' => count($opportunities),
             'opportunities_with_discounted_items' => count($underRateItems),
             'skipped_by_status' => $skippedStatuses,
             'query_params' => $queryString,
-            'sample_opp_dates' => array_slice(array_map(function($o) {
-                return [
-                    'id' => $o['id'],
-                    'starts_at' => $o['starts_at'] ?? 'null',
-                    'status' => $o['status_name'] ?? $o['status'] ?? 'unknown'
-                ];
-            }, $opportunities), 0, 5),
         ],
     ]);
 
