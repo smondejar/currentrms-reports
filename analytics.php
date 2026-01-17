@@ -151,6 +151,35 @@ $subdomain = config('currentrms.subdomain') ?? '';
             }
         }
 
+        /* Forecast Header Controls */
+        .forecast-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .forecast-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .forecast-controls label {
+            font-size: 10px;
+            color: var(--gray-500);
+        }
+        .forecast-controls input {
+            width: 50px;
+            padding: 2px 4px;
+            font-size: 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 3px;
+        }
+        .forecast-controls .btn {
+            padding: 2px 6px;
+            font-size: 10px;
+        }
+
         /* Category Table - Compact */
         .category-table {
             width: 100%;
@@ -684,12 +713,12 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
                     <!-- Project Forecast -->
                     <div class="card">
-                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div class="card-header forecast-header">
                             <h3 class="card-title">Project Forecast</h3>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <label style="font-size: 10px; color: var(--gray-500);">Days ahead:</label>
-                                <input type="number" id="forecast-days" value="90" min="7" max="365" style="width: 55px; padding: 2px 4px; font-size: 11px; border: 1px solid var(--gray-300); border-radius: 3px;">
-                                <button class="btn btn-sm" onclick="loadProjectForecast()" style="padding: 2px 6px; font-size: 10px;">Go</button>
+                            <div class="forecast-controls">
+                                <label>Days:</label>
+                                <input type="number" id="forecast-days" value="90" min="7" max="365">
+                                <button class="btn btn-sm" onclick="loadProjectForecast()">Go</button>
                             </div>
                         </div>
                         <div class="card-body">
@@ -892,8 +921,10 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     from: currentDateRange.from,
                     to: currentDateRange.to
                 });
+                console.log('Loading project charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/project-charges.php?${params}`);
                 const data = await response.json();
+                console.log('Project charges response:', data);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
