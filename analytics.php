@@ -583,39 +583,72 @@ $subdomain = config('currentrms.subdomain') ?? '';
         /* Dark mode adjustments */
         [data-theme="dark"] .date-controls,
         [data-theme="dark"] .summary-card {
-            background: var(--gray-800);
-            border-color: var(--gray-700);
+            background: #1f2937;
+            border-color: #374151;
         }
         [data-theme="dark"] .date-pickers input[type="date"],
         [data-theme="dark"] .control-group input,
-        [data-theme="dark"] .control-group select {
-            background: var(--gray-700);
-            border-color: var(--gray-600);
-            color: var(--text-color);
+        [data-theme="dark"] .control-group select,
+        [data-theme="dark"] .forecast-controls input {
+            background: #374151;
+            border-color: #4b5563;
+            color: #f3f4f6;
         }
         [data-theme="dark"] .category-table th {
-            background: var(--gray-700);
+            background: #111827;
+            color: #d1d5db;
+        }
+        [data-theme="dark"] .category-table td {
+            color: #e5e7eb;
+            border-color: #374151;
+        }
+        [data-theme="dark"] .category-table tr:hover td {
+            background: #374151;
         }
         [data-theme="dark"] .category-table .total-row {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(102, 126, 234, 0.15);
+        }
+        [data-theme="dark"] .category-table .total-row td {
+            border-top-color: var(--primary);
+        }
+        [data-theme="dark"] .section-header {
+            border-bottom-color: var(--primary);
+        }
+        [data-theme="dark"] .section-header h2 {
+            color: #f3f4f6;
+        }
+        [data-theme="dark"] .product-item {
+            border-color: #374151;
+        }
+        [data-theme="dark"] .product-item:hover {
+            background: #374151;
+        }
+        [data-theme="dark"] .product-name {
+            color: #e5e7eb;
         }
         [data-theme="dark"] .owner-header {
-            background: var(--gray-700);
+            background: #374151;
         }
         [data-theme="dark"] .owner-header:hover {
-            background: var(--gray-600);
+            background: #4b5563;
         }
         [data-theme="dark"] .owner-header.expanded {
             background: rgba(102, 126, 234, 0.2);
         }
         [data-theme="dark"] .under-rate-controls {
-            background: var(--gray-700);
+            background: #374151;
         }
         [data-theme="dark"] .owner-accordion {
-            border-color: var(--gray-700);
+            border-color: #374151;
         }
         [data-theme="dark"] .owner-item {
-            border-color: var(--gray-700);
+            border-color: #374151;
+        }
+        [data-theme="dark"] .discount-item {
+            border-color: #374151;
+        }
+        [data-theme="dark"] .discount-item:hover {
+            background: #374151;
         }
         [data-theme="dark"] .badge-warning {
             background: rgba(251, 191, 36, 0.2);
@@ -630,10 +663,13 @@ $subdomain = config('currentrms.subdomain') ?? '';
             color: #ef4444;
         }
         [data-theme="dark"] .product-rank {
-            background: var(--gray-600);
+            background: #4b5563;
         }
         [data-theme="dark"] .product-rank.top-3 {
             background: var(--primary);
+        }
+        [data-theme="dark"] .forecast-controls label {
+            color: #9ca3af;
         }
 
         /* Loading spinner */
