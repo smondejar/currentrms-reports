@@ -1,7 +1,7 @@
 <?php
 /**
  * Project Forecast API
- * Returns future project charges grouped by category based on the date range duration
+ * Returns future project charges grouped by category
  */
 
 ob_start();
@@ -21,28 +21,50 @@ try {
 
     // Get days ahead from request (default 90 days)
     $daysAhead = intval($_GET['days'] ?? 90);
-    $daysAhead = max(7, min(365, $daysAhead)); // Clamp between 7 and 365
+    $daysAhead = max(7, min(365, $daysAhead));
 
     // Forecast period: from today to today + daysAhead
     $forecastFrom = date('Y-m-d');
     $forecastTo = date('Y-m-d', strtotime("+{$daysAhead} days"));
 
-    // Fetch future opportunities with linked project (project has the category custom field)
-    $queryString = http_build_query([
+    // Step 1: Fetch future opportunities (has charge_total and project_id)
+    $opportunities = $api->fetchAll('opportunities', [
         'per_page' => 100,
         'q[starts_at_gteq]' => $forecastFrom,
         'q[starts_at_lteq]' => $forecastTo . ' 23:59:59',
-    ]) . '&include[]=project&include[]=project.custom_fields';
+    ], 50);
 
-    $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
+    // Collect unique project IDs and aggregate charges
+    $oppByProjectId = [];
+    foreach ($opportunities as $opp) {
+        $projectId = $opp['project_id'] ?? null;
+        if ($projectId) {
+            if (!isset($oppByProjectId[$projectId])) {
+                $oppByProjectId[$projectId] = $opp;
+            } else {
+                $oppByProjectId[$projectId]['charge_total'] =
+                    floatval($oppByProjectId[$projectId]['charge_total'] ?? 0) +
+                    floatval($opp['charge_total'] ?? 0);
+            }
+        }
+    }
 
-    // Category custom field IDs (on project)
-    // 1000074 = Business - Conf, assoc, corporate, exhib
-    // 1000075 = Consumer - Entert, consumer, exhib
+    // Step 2: Fetch projects with custom_fields
+    $projectsData = [];
+    if (!empty($oppByProjectId)) {
+        $projectQueryString = 'per_page=100&include[]=custom_fields';
+        $allProjects = $api->fetchAllWithQuery('projects', $projectQueryString, 50);
+
+        foreach ($allProjects as $proj) {
+            $projectsData[$proj['id']] = $proj;
+        }
+    }
+
+    // Category custom field IDs
     $BUSINESS_ID = 1000074;
     $CONSUMER_ID = 1000075;
 
-    // Group by "category" custom field (Business vs Consumer)
+    // Group by category
     $categoryData = [
         'Business' => ['name' => 'Business', 'count' => 0, 'charges' => 0],
         'Consumer' => ['name' => 'Consumer', 'count' => 0, 'charges' => 0],
@@ -50,12 +72,13 @@ try {
     $totalCharges = 0;
     $totalProjects = 0;
 
-    foreach ($opportunities as $opp) {
+    foreach ($oppByProjectId as $projectId => $opp) {
+        $project = $projectsData[$projectId] ?? null;
+        if (!$project) continue;
+
         $category = null;
 
-        // Get category from linked project's custom_fields
-        $project = $opp['project'] ?? null;
-        if ($project && isset($project['custom_fields']['category']) && is_array($project['custom_fields']['category'])) {
+        if (isset($project['custom_fields']['category']) && is_array($project['custom_fields']['category'])) {
             $categoryIds = $project['custom_fields']['category'];
             if (in_array($BUSINESS_ID, $categoryIds)) {
                 $category = 'Business';
@@ -64,20 +87,9 @@ try {
             }
         }
 
-        // Skip if no category found
-        if (!$category) {
-            continue;
-        }
+        if (!$category) continue;
 
-        $charges = floatval($opp['charge_total'] ?? $opp['total'] ?? 0);
-
-        if (!isset($categoryData[$category])) {
-            $categoryData[$category] = [
-                'name' => $category,
-                'count' => 0,
-                'charges' => 0,
-            ];
-        }
+        $charges = floatval($opp['charge_total'] ?? 0);
 
         $categoryData[$category]['count']++;
         $categoryData[$category]['charges'] += $charges;
