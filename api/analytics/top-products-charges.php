@@ -47,6 +47,7 @@ try {
     // Debug: log what we're querying
     $debugQuery = $queryString;
     $skippedStatuses = [];
+    $itemTypesSeen = []; // Track what item types we see
 
     // Aggregate charges by product
     $productCharges = [];
@@ -69,7 +70,14 @@ try {
         foreach ($items as $item) {
             $productName = $item['name'] ?? $item['product_name'] ?? 'Unknown Product';
             $productId = $item['product_id'] ?? 0;
-            $itemType = $item['item_type'] ?? $item['product_type'] ?? null;
+            $itemType = $item['item_type'] ?? $item['product_type'] ?? $item['type'] ?? null;
+
+            // Track all item types seen for debugging
+            $typeKey = $itemType === null ? 'null' : (string)$itemType;
+            if (!isset($itemTypesSeen[$typeKey])) {
+                $itemTypesSeen[$typeKey] = ['count' => 0, 'sample_name' => $productName];
+            }
+            $itemTypesSeen[$typeKey]['count']++;
 
             // Skip group headers (quantity = 0)
             $quantity = floatval($item['quantity'] ?? 0);
@@ -164,6 +172,8 @@ try {
         ],
         'debug' => [
             'query_used' => $debugQuery,
+            'type_filter' => $typeFilter,
+            'item_types_seen' => $itemTypesSeen,
             'opportunities_fetched' => count($opportunities),
             'skipped_by_status' => $skippedStatuses,
             'total_items_in_opportunities' => $totalItemsProcessed,
