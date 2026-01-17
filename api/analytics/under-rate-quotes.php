@@ -35,26 +35,18 @@ try {
     // Minimum discount percentage to report (default 5%)
     $minDiscount = floatval($_GET['min_discount'] ?? 5);
 
-    // First, fetch all staff members to build a lookup map for owners
-    $userMap = [];
-    try {
-        $staffMembers = $api->fetchAll('staff_members', ['per_page' => 100], 10);
-        foreach ($staffMembers as $staff) {
-            $userMap[$staff['id']] = $staff['name'] ?? ($staff['email'] ?? 'Staff #' . $staff['id']);
-        }
-    } catch (Exception $e) {
-        // If staff_members endpoint fails, we'll show owner IDs instead
-        error_log('Failed to fetch staff_members: ' . $e->getMessage());
-    }
-
-    // Fetch ALL opportunities with items - no status filter
+    // Fetch ALL opportunities with items and owned_by expanded
     // Filter by starts_at to get opportunities in our date range (past and future)
-    $opportunities = $api->fetchAll('opportunities', [
+    // Note: CurrentRMS requires include[] params to be sent separately, so we build URL manually
+    $baseParams = [
         'per_page' => 100,
         'q[starts_at_gteq]' => $startDate,
         'q[starts_at_lteq]' => $endDate . ' 23:59:59',
-        'include[]' => 'opportunity_items',
-    ], 50);
+    ];
+    // Add multiple include params by appending to query string
+    $queryString = http_build_query($baseParams) . '&include[]=opportunity_items&include[]=owned_by';
+
+    $opportunities = $api->fetchAllWithQuery('opportunities', $queryString, 50);
 
     $underRateItems = [];
     $ownerSummary = [];
@@ -63,9 +55,17 @@ try {
     foreach ($opportunities as $opp) {
         $items = $opp['opportunity_items'] ?? [];
 
-        // Get owner from owned_by field (user ID) and look up in userMap
-        $ownerId = $opp['owned_by'] ?? $opp['owner_id'] ?? 0;
-        $owner = $userMap[$ownerId] ?? ($ownerId ? "Owner #$ownerId" : 'Unknown Owner');
+        // Get owner from owned_by field (expanded object when included)
+        $ownedBy = $opp['owned_by'] ?? null;
+        if (is_array($ownedBy)) {
+            // Expanded object with name
+            $owner = $ownedBy['name'] ?? ($ownedBy['email'] ?? 'Unknown Owner');
+            $ownerId = $ownedBy['id'] ?? 0;
+        } else {
+            // Just an ID (fallback)
+            $ownerId = $ownedBy ?? 0;
+            $owner = $ownerId ? "Owner #$ownerId" : 'Unknown Owner';
+        }
         $oppStatus = $opp['status_name'] ?? $opp['status'] ?? $opp['state'] ?? 'Unknown';
         $startsAt = $opp['starts_at'] ?? null;
         $customer = $opp['member']['name'] ?? ($opp['billing_address']['name'] ?? ($opp['subject'] ?? 'Unknown Customer'));

@@ -161,6 +161,73 @@ class CurrentRMSClient
     }
 
     /**
+     * Fetch all pages with a raw query string (for multiple same-name params like include[])
+     */
+    public function fetchAllWithQuery(string $endpoint, string $queryString, int $maxPages = 100): array
+    {
+        $allResults = [];
+        $page = 1;
+
+        do {
+            $pageQuery = $queryString . '&page=' . $page;
+            $response = $this->getWithQuery($endpoint, $pageQuery);
+
+            $dataKey = $this->getDataKey($endpoint);
+            $results = $response[$dataKey] ?? [];
+
+            $allResults = array_merge($allResults, $results);
+
+            $meta = $response['meta'] ?? [];
+            $totalPages = $meta['total_pages'] ?? 1;
+            $page++;
+
+        } while ($page <= $totalPages && $page <= $maxPages);
+
+        return $allResults;
+    }
+
+    /**
+     * Make a GET request with a raw query string
+     */
+    public function getWithQuery(string $endpoint, string $queryString): array
+    {
+        $url = $this->baseUrl . '/' . ltrim($endpoint, '/') . '?' . $queryString;
+
+        $ch = curl_init();
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $this->timeout,
+            CURLOPT_SSL_VERIFYPEER => $this->verifySSL,
+            CURLOPT_HTTPHEADER => [
+                'X-SUBDOMAIN: ' . $this->subdomain,
+                'X-AUTH-TOKEN: ' . $this->apiToken,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            throw new Exception("cURL Error: " . $error);
+        }
+
+        $decoded = json_decode($response, true);
+
+        if ($httpCode >= 400) {
+            $errorMessage = $decoded['errors'][0]['detail'] ?? $decoded['error'] ?? 'Unknown API error';
+            throw new Exception("API Error ({$httpCode}): " . $errorMessage);
+        }
+
+        return $decoded ?? [];
+    }
+
+    /**
      * Get the data key for an endpoint response
      */
     private function getDataKey(string $endpoint): string
