@@ -88,6 +88,20 @@ try {
     // Get the opportunity without items to see all base fields
     $oppBase = $oppWithOwner['opportunity'] ?? $oppWithOwner;
 
+    // Find all fields that might contain owner/user info
+    $ownerRelatedFields = [];
+    foreach ($oppBase as $key => $value) {
+        if (stripos($key, 'owner') !== false ||
+            stripos($key, 'user') !== false ||
+            stripos($key, 'by') !== false ||
+            stripos($key, 'member') !== false ||
+            stripos($key, 'staff') !== false ||
+            stripos($key, 'assign') !== false ||
+            stripos($key, 'name') !== false) {
+            $ownerRelatedFields[$key] = $value;
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'opportunity' => [
@@ -99,20 +113,9 @@ try {
             'starts_at' => $opp['starts_at'] ?? null,
             'items_count' => count($items),
         ],
-        'owner_fields' => [
-            'owner' => $opp['owner'] ?? null,
-            'owner_id' => $opp['owner_id'] ?? null,
-            'owner_name' => $opp['owner_name'] ?? null,
-            'user_id' => $opp['user_id'] ?? null,
-            'assigned_to' => $opp['assigned_to'] ?? null,
-            'created_by' => $opp['created_by'] ?? null,
-            'owned_by' => $opp['owned_by'] ?? null,
-            'member' => $opp['member'] ?? null,
-        ],
+        'owner_related_fields' => $ownerRelatedFields,
         'all_opportunity_keys' => array_keys($oppBase),
         'items' => $itemsDebug,
-        // Show first raw item for full inspection
-        'first_raw_item' => $items[0] ?? null,
     ], JSON_PRETTY_PRINT);
 
 } catch (Exception $e) {
