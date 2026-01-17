@@ -195,14 +195,24 @@ try {
             'end_date' => $endDate,
         ],
         'debug' => [
+            'today' => date('Y-m-d'),
             'raw_past_days_input' => $_GET['past_days'] ?? 'not set',
             'raw_future_days_input' => $_GET['future_days'] ?? 'not set',
             'past_days_used' => $pastDays,
             'future_days_used' => $futureDays,
+            'calculated_start_date' => $startDate,
+            'calculated_end_date' => $endDate,
             'total_opportunities_fetched' => count($opportunities),
+            'opportunities_with_discounted_items' => count($underRateItems),
             'skipped_by_status' => $skippedStatuses,
-            'date_range_used' => $startDate . ' to ' . $endDate,
             'query_params' => $queryString,
+            'sample_opp_dates' => array_slice(array_map(function($o) {
+                return [
+                    'id' => $o['id'],
+                    'starts_at' => $o['starts_at'] ?? 'null',
+                    'status' => $o['status_name'] ?? $o['status'] ?? 'unknown'
+                ];
+            }, $opportunities), 0, 5),
         ],
     ]);
 
