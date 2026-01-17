@@ -11,6 +11,7 @@ Auth::requirePermission(Permissions::VIEW_ANALYTICS);
 $pageTitle = 'Analytics';
 $api = getApiClient();
 $currencySymbol = config('app.currency_symbol') ?? '£';
+$subdomain = config('currentrms.subdomain') ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -22,209 +23,415 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
     <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Load theme immediately to prevent flash of wrong theme
         (function() {
             var theme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
     <style>
-        .widget-config-btn {
-            position: relative;
-        }
-        .widget-panel {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: var(--gray-50);
-            border: 1px solid var(--gray-200);
+        /* Date Range Controls */
+        .date-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            background: var(--card-bg, #fff);
             border-radius: 8px;
-            padding: 16px;
-            min-width: 280px;
-            z-index: 100;
-            box-shadow: var(--shadow-lg);
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .widget-panel.active {
-            display: block;
-        }
-        .widget-panel h4 {
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            color: var(--gray-600);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .widget-panel-section {
-            margin-bottom: 16px;
-        }
-        .widget-option {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            gap: 10px;
-        }
-        .widget-option label {
-            flex: 1;
-            cursor: pointer;
-        }
-        .chart-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 24px;
             margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
         }
-        [data-theme="dark"] .widget-panel {
-            background: #1f2937;
-            border-color: #374151;
-        }
-        /* Report Widget Modal */
-        .report-widget-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .report-widget-modal.active {
-            display: flex;
-        }
-        .report-widget-modal-content {
-            background: var(--gray-50);
-            border-radius: 12px;
-            padding: 24px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: var(--shadow-xl);
-        }
-        .report-widget-modal h3 {
-            margin: 0 0 20px 0;
-            font-size: 18px;
-        }
-        .report-widget-modal .form-group {
-            margin-bottom: 16px;
-        }
-        .report-widget-modal label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-        }
-        .report-widget-modal select,
-        .report-widget-modal input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--gray-300);
-            border-radius: 6px;
-            font-size: 14px;
-            background: var(--gray-50);
-        }
-        .report-widget-modal .btn-row {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-        [data-theme="dark"] .report-widget-modal-content {
-            background: #1f2937;
-        }
-        /* Report widget card */
-        .report-widget-card {
-            position: relative;
-        }
-        .report-widget-card .widget-actions {
-            position: absolute;
-            top: 12px;
-            right: 12px;
+        .date-quick-btns {
             display: flex;
             gap: 8px;
         }
-        .report-widget-card .widget-actions button {
-            background: var(--gray-100);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
+        .date-quick-btns .btn {
+            padding: 8px 16px;
+            font-size: 13px;
         }
-        .report-widget-card .widget-actions button:hover {
-            background: var(--gray-200);
+        .date-quick-btns .btn.active {
+            background: var(--primary);
+            color: #fff;
         }
-        .widget-stat-value {
-            font-size: 36px;
-            font-weight: bold;
-            color: var(--primary);
-            margin: 20px 0;
+        .date-pickers {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .widget-stat-label {
+        .date-pickers input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--input-bg, #fff);
+            color: var(--text-color);
+        }
+        .date-pickers span {
             color: var(--gray-500);
+            font-size: 13px;
+        }
+
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+        }
+        .section-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* Two Column Layout */
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        @media (max-width: 900px) {
+            .two-col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Category Table */
+        .category-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .category-table th,
+        .category-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .category-table th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .category-table tr:hover td {
+            background: var(--gray-50);
+        }
+        .category-table .total-row {
+            font-weight: 600;
+            background: var(--primary-50, #eef2ff);
+        }
+        .category-table .total-row td {
+            border-top: 2px solid var(--primary);
+        }
+
+        /* Product Cards */
+        .product-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .product-item:last-child {
+            border-bottom: none;
+        }
+        .product-item:hover {
+            background: var(--gray-50);
+        }
+        .product-rank {
+            width: 24px;
+            height: 24px;
+            background: var(--gray-200);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .product-rank.top-3 {
+            background: var(--primary);
+            color: #fff;
+        }
+        .product-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .product-name {
+            font-weight: 500;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .product-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--primary);
+        }
+
+        /* Owner Accordion */
+        .owner-accordion {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .owner-item {
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .owner-item:last-child {
+            border-bottom: none;
+        }
+        .owner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            background: var(--gray-50);
+            transition: background 0.2s;
+        }
+        .owner-header:hover {
+            background: var(--gray-100);
+        }
+        .owner-header.expanded {
+            background: var(--primary-50, #eef2ff);
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .owner-name {
+            font-weight: 600;
             font-size: 14px;
         }
-        /* Under-Rate Quotes Styles */
-        #under-rate-summary .stat-card {
-            padding: 12px 16px;
+        .owner-stats {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 12px;
         }
-        #under-rate-summary .stat-label {
+        .owner-stats .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .owner-stats .stat-label {
+            color: var(--gray-500);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .owner-stats .stat-value {
+            font-weight: 600;
+        }
+        .owner-stats .stat-value.danger {
+            color: var(--danger);
+        }
+        .owner-toggle {
+            margin-left: 12px;
+            transition: transform 0.2s;
+        }
+        .owner-header.expanded .owner-toggle {
+            transform: rotate(180deg);
+        }
+        .owner-content {
+            display: none;
+            padding: 0;
+            background: var(--card-bg);
+        }
+        .owner-content.expanded {
+            display: block;
+        }
+        .owner-items-table {
+            width: 100%;
+            font-size: 12px;
+        }
+        .owner-items-table th,
+        .owner-items-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .owner-items-table th {
+            background: var(--gray-50);
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+
+        /* Under-Rate Date Controls */
+        .under-rate-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: var(--gray-50);
+            border-radius: 6px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-group label {
+            font-size: 12px;
+            color: var(--gray-600);
+            white-space: nowrap;
+        }
+        .control-group input,
+        .control-group select {
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 12px;
+            background: var(--input-bg, #fff);
+            color: var(--text-color);
+        }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .summary-card .label {
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: var(--gray-500);
+            margin-bottom: 4px;
         }
-        #under-rate-summary .stat-value {
-            font-size: 20px;
+        .summary-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-color);
         }
-        .under-rate-owners {
-            max-height: 300px;
-            overflow-y: auto;
+        .summary-card .value.danger {
+            color: var(--danger);
         }
-        .text-danger {
-            color: var(--danger, #dc2626) !important;
-        }
-        .text-warning {
-            color: var(--warning, #d97706) !important;
+
+        /* Badge Styles */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
         }
         .badge-warning {
-            background: var(--warning-100, #fef3c7);
-            color: var(--warning-700, #92400e);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
+            background: #fef3c7;
+            color: #92400e;
         }
         .badge-success {
-            background: var(--success-100, #d1fae5);
-            color: var(--success-700, #047857);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
+            background: #d1fae5;
+            color: #047857;
         }
         .badge-danger {
-            background: var(--danger-100, #fee2e2);
-            color: var(--danger-700, #b91c1c);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
+            background: #fee2e2;
+            color: #b91c1c;
         }
         .badge-secondary {
-            background: var(--gray-200, #e5e7eb);
-            color: var(--gray-700, #374151);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
+            background: var(--gray-200);
+            color: var(--gray-700);
         }
-        [data-theme="dark"] .under-rate-owner-item {
-            background: var(--gray-800) !important;
-            border-color: var(--gray-700) !important;
+        .badge-primary {
+            background: var(--primary-100, #e0e7ff);
+            color: var(--primary);
         }
-        [data-theme="dark"] .under-rate-owner-item:first-child {
-            background: rgba(220, 38, 38, 0.1) !important;
-            border-color: rgba(220, 38, 38, 0.3) !important;
+
+        /* Text utilities */
+        .text-danger { color: var(--danger) !important; }
+        .text-warning { color: #d97706 !important; }
+        .text-muted { color: var(--gray-500) !important; }
+        .text-right { text-align: right !important; }
+
+        /* Dark mode adjustments */
+        [data-theme="dark"] .date-controls,
+        [data-theme="dark"] .summary-card {
+            background: var(--gray-800);
+            border-color: var(--gray-700);
+        }
+        [data-theme="dark"] .date-pickers input[type="date"],
+        [data-theme="dark"] .control-group input,
+        [data-theme="dark"] .control-group select {
+            background: var(--gray-700);
+            border-color: var(--gray-600);
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .category-table th {
+            background: var(--gray-700);
+        }
+        [data-theme="dark"] .category-table .total-row {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        [data-theme="dark"] .owner-header {
+            background: var(--gray-700);
+        }
+        [data-theme="dark"] .owner-header:hover {
+            background: var(--gray-600);
+        }
+        [data-theme="dark"] .owner-header.expanded {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        [data-theme="dark"] .under-rate-controls {
+            background: var(--gray-700);
+        }
+        [data-theme="dark"] .owner-accordion {
+            border-color: var(--gray-700);
+        }
+        [data-theme="dark"] .owner-item {
+            border-color: var(--gray-700);
+        }
+        [data-theme="dark"] .badge-warning {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+        [data-theme="dark"] .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        [data-theme="dark"] .badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        [data-theme="dark"] .product-rank {
+            background: var(--gray-600);
+        }
+        [data-theme="dark"] .product-rank.top-3 {
+            background: var(--primary);
+        }
+
+        /* Loading spinner */
+        .loading-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--gray-500);
         }
     </style>
 </head>
@@ -232,62 +439,8 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay">
         <div class="spinner"></div>
-        <div class="loading-overlay-text">Fetching Analytics Data</div>
-        <div class="loading-overlay-subtext">Please wait while we load your data from CurrentRMS...</div>
-    </div>
-
-    <!-- Report Widget Modal -->
-    <div class="report-widget-modal" id="report-widget-modal">
-        <div class="report-widget-modal-content">
-            <h3>Add Report Widget</h3>
-            <form id="report-widget-form">
-                <div class="form-group">
-                    <label for="widget-report-id">Select Report</label>
-                    <select id="widget-report-id" required>
-                        <option value="">Loading reports...</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="widget-type">Widget Type</label>
-                    <select id="widget-type" required>
-                        <option value="stat_card">Stat Card (Single Value)</option>
-                        <option value="chart_bar">Bar Chart</option>
-                        <option value="chart_line">Line Chart</option>
-                        <option value="chart_pie">Pie Chart</option>
-                        <option value="chart_doughnut">Doughnut Chart</option>
-                        <option value="table">Data Table</option>
-                    </select>
-                </div>
-                <div class="form-group" id="widget-aggregate-field-group" style="display: none;">
-                    <label for="widget-aggregate-field">Value Field (for aggregation)</label>
-                    <input type="text" id="widget-aggregate-field" placeholder="e.g., rental_charge_total">
-                    <small class="text-muted">Field to aggregate (sum, count, etc.)</small>
-                </div>
-                <div class="form-group" id="widget-group-by-group" style="display: none;">
-                    <label for="widget-group-by">Group By Field</label>
-                    <input type="text" id="widget-group-by" placeholder="e.g., status_name">
-                    <small class="text-muted">Field to group data by</small>
-                </div>
-                <div class="form-group" id="widget-aggregate-func-group" style="display: none;">
-                    <label for="widget-aggregate-func">Aggregation Function</label>
-                    <select id="widget-aggregate-func">
-                        <option value="sum">Sum</option>
-                        <option value="count">Count</option>
-                        <option value="avg">Average</option>
-                        <option value="min">Minimum</option>
-                        <option value="max">Maximum</option>
-                    </select>
-                </div>
-                <div class="form-group" id="widget-limit-group" style="display: none;">
-                    <label for="widget-limit">Limit Results</label>
-                    <input type="number" id="widget-limit" value="10" min="1" max="100">
-                </div>
-                <div class="btn-row">
-                    <button type="button" class="btn btn-secondary" onclick="closeReportWidgetModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Widget</button>
-                </div>
-            </form>
-        </div>
+        <div class="loading-overlay-text">Loading Analytics</div>
+        <div class="loading-overlay-subtext">Please wait...</div>
     </div>
 
     <div class="app-layout">
@@ -309,1278 +462,547 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     </div>
                 <?php else: ?>
 
-                <!-- Date Range Filter & Widget Config -->
-                <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-                    <div style="display: flex; gap: 16px; align-items: center;">
-                        <div class="filter-group">
-                            <label class="filter-label">Date Range:</label>
-                            <select class="form-control" id="date-range" style="width: 200px;">
-                                <option value="7">Last 7 Days</option>
-                                <option value="30" selected>Last 30 Days</option>
-                                <option value="90">Last 90 Days</option>
-                                <option value="365">Last Year</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M23 4v6h-6M1 20v-6h6"/>
-                                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                            </svg>
-                            Refresh
-                        </button>
+                <!-- Global Date Range Controls -->
+                <div class="date-controls">
+                    <div class="date-quick-btns">
+                        <button class="btn btn-secondary" data-days="30">30 Days</button>
+                        <button class="btn btn-secondary active" data-days="90">90 Days</button>
+                        <button class="btn btn-secondary" data-days="365">Year</button>
                     </div>
-                    <div class="widget-config-btn">
-                        <button class="btn btn-secondary btn-sm" id="widget-config-toggle">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="3"/>
-                                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-                            </svg>
-                            Customize Widgets
-                        </button>
-                        <div class="widget-panel" id="widget-panel">
-                            <div class="widget-panel-section">
-                                <h4>KPI Cards</h4>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-total_charges" checked onchange="toggleWidget('total_charges')">
-                                    <label for="widget-total_charges">Total Charges</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-rental_charges" checked onchange="toggleWidget('rental_charges')">
-                                    <label for="widget-rental_charges">Rental Charges</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-service_charges" checked onchange="toggleWidget('service_charges')">
-                                    <label for="widget-service_charges">Service Charges</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-opportunities" checked onchange="toggleWidget('opportunities')">
-                                    <label for="widget-opportunities">Active Opportunities</label>
-                                </div>
+                    <div class="date-pickers">
+                        <input type="date" id="date-from" title="From date">
+                        <span>to</span>
+                        <input type="date" id="date-to" title="To date">
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="apply-dates">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        Apply
+                    </button>
+                </div>
+
+                <!-- PROJECTS SECTION -->
+                <div class="section-header">
+                    <h2>Projects</h2>
+                </div>
+                <div class="two-col-grid">
+                    <!-- Project Charges by Category -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Project Charges by Category</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="project-charges-table" class="loading-placeholder">
+                                <div class="spinner"></div>
                             </div>
-                            <div class="widget-panel-section">
-                                <h4>Charts</h4>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-charges_trend" checked onchange="toggleWidget('charges_trend')">
-                                    <label for="widget-charges_trend">Charges Trend</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-opp_status" checked onchange="toggleWidget('opp_status')">
-                                    <label for="widget-opp_status">Opportunities by Status</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-top_products" checked onchange="toggleWidget('top_products')">
-                                    <label for="widget-top_products">Top Products by Charges</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-customer_segments" checked onchange="toggleWidget('customer_segments')">
-                                    <label for="widget-customer_segments">Customer Segments</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-projects_by_category" checked onchange="toggleWidget('projects_by_category')">
-                                    <label for="widget-projects_by_category">Projects by Category</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-charges_by_category" checked onchange="toggleWidget('charges_by_category')">
-                                    <label for="widget-charges_by_category">Charges by Category</label>
-                                </div>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-opportunity_types" checked onchange="toggleWidget('opportunity_types')">
-                                    <label for="widget-opportunity_types">Opportunity Types</label>
-                                </div>
-                            </div>
-                            <div class="widget-panel-section">
-                                <h4>Static Reports</h4>
-                                <div class="widget-option">
-                                    <input type="checkbox" id="widget-under_rate_quotes" checked onchange="toggleWidget('under_rate_quotes')">
-                                    <label for="widget-under_rate_quotes">Under-Rate Quotes Analysis</label>
-                                </div>
-                            </div>
-                            <div class="widget-panel-section" id="saved-reports-section">
-                                <h4>Saved Reports</h4>
-                                <div id="saved-reports-list">
-                                    <div class="text-muted" style="font-size: 12px;">Loading reports...</div>
-                                </div>
-                            </div>
-                            <div class="widget-panel-section">
-                                <button class="btn btn-sm btn-primary" style="width: 100%;" onclick="addReportWidget()">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"/>
-                                        <line x1="12" y1="8" x2="12" y2="16"/>
-                                        <line x1="8" y1="12" x2="16" y2="12"/>
-                                    </svg>
-                                    Add Report Widget
-                                </button>
+                        </div>
+                    </div>
+
+                    <!-- Project Forecast -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Project Forecast</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="project-forecast-table" class="loading-placeholder">
+                                <div class="spinner"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- KPI Cards -->
-                <div class="stat-cards" id="kpi-cards">
-                    <div class="stat-card" data-widget="total_charges">
-                        <div class="stat-icon primary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Total Charges</div>
-                            <div class="stat-value" id="kpi-total-charges">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-total-charges-change"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card" data-widget="rental_charges">
-                        <div class="stat-icon success">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                                <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Rental Charges</div>
-                            <div class="stat-value" id="kpi-rental-charges">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-rental-charges-change"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card" data-widget="service_charges">
-                        <div class="stat-icon warning">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Service Charges</div>
-                            <div class="stat-value" id="kpi-service-charges">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-service-charges-change"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card" data-widget="opportunities">
-                        <div class="stat-icon info">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <path d="M12 6v6l4 2"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Active Opportunities</div>
-                            <div class="stat-value" id="kpi-opportunities">
-                                <div class="spinner" style="width: 20px; height: 20px;"></div>
-                            </div>
-                            <div class="stat-change" id="kpi-opp-change"></div>
-                        </div>
-                    </div>
+                <!-- PRODUCTS SECTION -->
+                <div class="section-header">
+                    <h2>Products</h2>
                 </div>
-
-                <!-- Charts Row 1 -->
-                <div class="chart-row">
-                    <div class="card" data-widget="charges_trend">
+                <div class="two-col-grid">
+                    <!-- Top 20 Products by Charges -->
+                    <div class="card">
                         <div class="card-header">
-                            <h3 class="card-title">Charges Trend</h3>
+                            <h3 class="card-title">Top 20 Products by Charges</h3>
                         </div>
                         <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-charges-trend"></canvas>
+                            <div id="top-products-charges" class="product-list loading-placeholder">
+                                <div class="spinner"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card" data-widget="opp_status">
+                    <!-- Top 20 Products by Utilisation -->
+                    <div class="card">
                         <div class="card-header">
-                            <h3 class="card-title">Opportunities by Status</h3>
+                            <h3 class="card-title">Top 20 Products by Utilisation</h3>
                         </div>
                         <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-opp-status"></canvas>
+                            <div id="top-products-utilisation" class="product-list loading-placeholder">
+                                <div class="spinner"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Charts Row 2 -->
-                <div class="chart-row">
-                    <div class="card" data-widget="top_products">
-                        <div class="card-header">
-                            <h3 class="card-title">Top Products by Revenue</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-top-products"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card" data-widget="customer_segments">
-                        <div class="card-header">
-                            <h3 class="card-title">Customer Segments</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-customers"></canvas>
-                            </div>
-                        </div>
-                    </div>
+                <!-- UNDER-RATE QUOTES SECTION -->
+                <div class="section-header">
+                    <h2>Under-Rate Quotes Analysis</h2>
                 </div>
-
-                <!-- Charts Row 3 - Project Categories -->
-                <div class="chart-row">
-                    <div class="card" data-widget="projects_by_category">
-                        <div class="card-header">
-                            <h3 class="card-title">Projects by Category</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-project-categories"></canvas>
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Dedicated Date Range for Under-Rate -->
+                        <div class="under-rate-controls">
+                            <div class="control-group">
+                                <label>Past Days:</label>
+                                <input type="number" id="under-rate-past" value="90" min="0" max="365" style="width: 70px;">
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="card" data-widget="charges_by_category">
-                        <div class="card-header">
-                            <h3 class="card-title">Charges by Project Category</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-category-charges"></canvas>
+                            <div class="control-group">
+                                <label>Future Days:</label>
+                                <input type="number" id="under-rate-future" value="365" min="0" max="730" style="width: 70px;">
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Charts Row 4 - Opportunity Types -->
-                <div class="chart-row">
-                    <div class="card" data-widget="opportunity_types">
-                        <div class="card-header">
-                            <h3 class="card-title">Opportunity Types / Categories</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 300px;">
-                                <canvas id="chart-opportunity-types"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Under-Rate Quotes Report -->
-                <div class="card" data-widget="under_rate_quotes" style="margin-bottom: 24px;">
-                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 class="card-title">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
-                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                                <line x1="12" y1="9" x2="12" y2="13"/>
-                                <line x1="12" y1="17" x2="12.01" y2="17"/>
-                            </svg>
-                            Under-Rate Quotes Analysis
-                        </h3>
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
-                                Min Discount:
-                                <select id="under-rate-min-discount" class="form-control" style="width: 80px; padding: 4px 8px;">
+                            <div class="control-group">
+                                <label>Min Discount:</label>
+                                <select id="under-rate-min-discount">
                                     <option value="5">5%</option>
                                     <option value="10" selected>10%</option>
                                     <option value="15">15%</option>
                                     <option value="20">20%</option>
                                     <option value="25">25%</option>
                                 </select>
-                            </label>
-                            <button class="btn btn-sm btn-secondary" onclick="loadUnderRateQuotes()">
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="loadUnderRateQuotes()">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M23 4v6h-6M1 20v-6h6"/>
-                                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
                                 </svg>
                                 Refresh
                             </button>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted" style="margin-bottom: 16px; font-size: 13px;">
-                            Identifies opportunity items quoted below standard product rates across <strong>all statuses</strong> (quotes, orders, etc.) - including future opportunities up to 1 year ahead.
-                        </p>
 
                         <!-- Summary Cards -->
-                        <div id="under-rate-summary" class="stat-cards" style="margin-bottom: 20px;">
-                            <div class="stat-card" style="flex: 1; min-width: 150px;">
-                                <div class="stat-content">
-                                    <div class="stat-label">Total Items</div>
-                                    <div class="stat-value" id="under-rate-total-items">
-                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
-                                    </div>
-                                </div>
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <div class="label">Total Items</div>
+                                <div class="value" id="under-rate-total-items">-</div>
                             </div>
-                            <div class="stat-card" style="flex: 1; min-width: 150px;">
-                                <div class="stat-content">
-                                    <div class="stat-label">Potential Lost Revenue</div>
-                                    <div class="stat-value text-danger" id="under-rate-lost-revenue">
-                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
-                                    </div>
-                                </div>
+                            <div class="summary-card">
+                                <div class="label">Potential Lost Revenue</div>
+                                <div class="value danger" id="under-rate-lost-revenue">-</div>
                             </div>
-                            <div class="stat-card" style="flex: 1; min-width: 150px;">
-                                <div class="stat-content">
-                                    <div class="stat-label">Avg Discount</div>
-                                    <div class="stat-value" id="under-rate-avg-discount">
-                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
-                                    </div>
-                                </div>
+                            <div class="summary-card">
+                                <div class="label">Avg Discount</div>
+                                <div class="value" id="under-rate-avg-discount">-</div>
                             </div>
-                            <div class="stat-card" style="flex: 1; min-width: 150px;">
-                                <div class="stat-content">
-                                    <div class="stat-label">Owners Involved</div>
-                                    <div class="stat-value" id="under-rate-owners">
-                                        <div class="spinner" style="width: 16px; height: 16px;"></div>
-                                    </div>
-                                </div>
+                            <div class="summary-card">
+                                <div class="label">Owners Involved</div>
+                                <div class="value" id="under-rate-owners">-</div>
                             </div>
                         </div>
 
-                        <!-- Owner Summary -->
-                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
-                            <div>
-                                <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--gray-600);">By Owner</h4>
-                                <div id="under-rate-by-owner" class="under-rate-owner-list">
-                                    <div class="text-center text-muted">
-                                        <div class="spinner" style="width: 20px; height: 20px;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--gray-600);">Top Under-Rate Items</h4>
-                                <div id="under-rate-items-table" style="overflow-x: auto;">
-                                    <div class="text-center text-muted">
-                                        <div class="spinner" style="width: 20px; height: 20px;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Report Widgets Container -->
-                <div id="report-widgets-container" class="chart-row" style="display: none;">
-                    <!-- Dynamic report widgets will be added here -->
-                </div>
-
-                <!-- Recent Activity -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Recent Activity Timeline</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="timeline" id="activity-timeline">
-                            <div class="text-center text-muted">
+                        <!-- Collapsible Owners List -->
+                        <div id="owners-accordion" class="owner-accordion">
+                            <div class="loading-placeholder">
                                 <div class="spinner"></div>
-                                <p>Loading activity...</p>
                             </div>
                         </div>
                     </div>
                 </div>
+
                 <?php endif; ?>
             </div>
         </div>
     </div>
 
-    <script>
-        // Set currency symbol from config
-        window.APP_CURRENCY = '<?php echo e($currencySymbol); ?>';
-    </script>
     <script src="assets/js/app.js"></script>
     <script>
-        const currencySymbol = window.APP_CURRENCY || '£';
-        let charts = {};
-        let widgetPreferences = {};
+        const currencySymbol = '<?php echo e($currencySymbol); ?>';
+        const subdomain = '<?php echo e($subdomain); ?>';
 
-        // Load widget preferences from localStorage
-        function loadWidgetPreferences() {
-            const saved = localStorage.getItem('analyticsWidgets');
-            if (saved) {
-                try {
-                    widgetPreferences = JSON.parse(saved);
-                } catch (e) {
-                    widgetPreferences = {};
-                }
-            }
+        // Date state
+        let currentDateRange = {
+            days: 90,
+            from: null,
+            to: null
+        };
 
-            // Apply saved preferences
-            for (const [widgetId, visible] of Object.entries(widgetPreferences)) {
-                const checkbox = document.getElementById('widget-' + widgetId);
-                if (checkbox) {
-                    checkbox.checked = visible;
-                }
-                const widget = document.querySelector('[data-widget="' + widgetId + '"]');
-                if (widget) {
-                    widget.style.display = visible ? '' : 'none';
-                }
-            }
+        // Initialize dates
+        function initDates() {
+            const today = new Date();
+            const fromDate = new Date();
+            fromDate.setDate(today.getDate() - 90);
+
+            document.getElementById('date-from').value = fromDate.toISOString().split('T')[0];
+            document.getElementById('date-to').value = today.toISOString().split('T')[0];
+
+            currentDateRange.from = fromDate.toISOString().split('T')[0];
+            currentDateRange.to = today.toISOString().split('T')[0];
         }
 
-        function saveWidgetPreferences() {
-            localStorage.setItem('analyticsWidgets', JSON.stringify(widgetPreferences));
-        }
+        // Quick date buttons
+        document.querySelectorAll('.date-quick-btns .btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.date-quick-btns .btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
 
-        function toggleWidget(widgetId) {
-            const checkbox = document.getElementById('widget-' + widgetId);
-            const visible = checkbox ? checkbox.checked : true;
-            widgetPreferences[widgetId] = visible;
+                const days = parseInt(this.dataset.days);
+                currentDateRange.days = days;
 
-            const widgets = document.querySelectorAll('[data-widget="' + widgetId + '"]');
-            widgets.forEach(widget => {
-                widget.style.display = visible ? '' : 'none';
+                const today = new Date();
+                const fromDate = new Date();
+                fromDate.setDate(today.getDate() - days);
+
+                document.getElementById('date-from').value = fromDate.toISOString().split('T')[0];
+                document.getElementById('date-to').value = today.toISOString().split('T')[0];
+
+                currentDateRange.from = fromDate.toISOString().split('T')[0];
+                currentDateRange.to = today.toISOString().split('T')[0];
+
+                loadAllData();
             });
+        });
 
-            saveWidgetPreferences();
-        }
+        // Apply custom dates
+        document.getElementById('apply-dates')?.addEventListener('click', function() {
+            document.querySelectorAll('.date-quick-btns .btn').forEach(b => b.classList.remove('active'));
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadWidgetPreferences();
-            loadAnalytics();
+            currentDateRange.from = document.getElementById('date-from').value;
+            currentDateRange.to = document.getElementById('date-to').value;
+            currentDateRange.days = null;
 
-            // Reload when date range changes
-            document.getElementById('date-range')?.addEventListener('change', function() {
-                loadAnalytics();
-                loadUnderRateQuotes();
-            });
-
-            // Widget panel toggle
-            document.getElementById('widget-config-toggle')?.addEventListener('click', function(e) {
-                e.stopPropagation();
-                document.getElementById('widget-panel')?.classList.toggle('active');
-            });
-
-            // Close widget panel when clicking outside
-            document.addEventListener('click', function(e) {
-                const panel = document.getElementById('widget-panel');
-                const toggle = document.getElementById('widget-config-toggle');
-                if (panel && !panel.contains(e.target) && !toggle.contains(e.target)) {
-                    panel.classList.remove('active');
-                }
-            });
+            loadAllData();
         });
 
         function showLoading(show = true) {
             const overlay = document.getElementById('loading-overlay');
             if (overlay) {
-                if (show) {
-                    overlay.classList.remove('hidden');
-                } else {
-                    overlay.classList.add('hidden');
-                }
+                overlay.classList.toggle('hidden', !show);
             }
         }
 
-        async function loadAnalytics() {
-            const days = document.getElementById('date-range')?.value || 30;
+        // Load all data
+        async function loadAllData() {
             showLoading(true);
-
             try {
-                const response = await fetch(`api/analytics.php?days=${days}`);
-
-                // Check if response is OK
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const text = await response.text();
-                console.log('Analytics raw response:', text.substring(0, 500));
-
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error('JSON parse error:', parseError, 'Response:', text.substring(0, 200));
-                    throw new Error('Invalid JSON response from server');
-                }
-
-                if (data.error) {
-                    App.showNotification(data.error, 'error');
-                    showLoading(false);
-                    return;
-                }
-
-                updateKPIs(data.kpis || {});
-                updateCharts(data.charts || {});
-                updateTimeline(data.timeline || []);
-
+                await Promise.all([
+                    loadProjectCharges(),
+                    loadProjectForecast(),
+                    loadTopProductsByCharges(),
+                    loadTopProductsByUtilisation(),
+                    loadUnderRateQuotes()
+                ]);
             } catch (error) {
-                console.error('Failed to load analytics:', error);
-                App.showNotification('Failed to load analytics: ' + error.message, 'error');
+                console.error('Error loading data:', error);
             } finally {
                 showLoading(false);
             }
         }
 
-        function updateKPIs(kpis) {
-            // Total Charges
-            if (kpis.total_charges) {
-                document.getElementById('kpi-total-charges').textContent = currencySymbol + parseFloat(kpis.total_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                updateChange('kpi-total-charges-change', kpis.total_charges.change);
-            }
+        // Load Project Charges by Category
+        async function loadProjectCharges() {
+            const container = document.getElementById('project-charges-table');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
-            // Rental Charges
-            if (kpis.rental_charges) {
-                document.getElementById('kpi-rental-charges').textContent = currencySymbol + parseFloat(kpis.rental_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                updateChange('kpi-rental-charges-change', kpis.rental_charges.change);
-            }
-
-            // Service Charges
-            if (kpis.service_charges) {
-                document.getElementById('kpi-service-charges').textContent = currencySymbol + parseFloat(kpis.service_charges.value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                updateChange('kpi-service-charges-change', kpis.service_charges.change);
-            }
-
-            // Opportunities
-            if (kpis.opportunities) {
-                document.getElementById('kpi-opportunities').textContent = parseInt(kpis.opportunities.value || 0).toLocaleString();
-                updateChange('kpi-opp-change', kpis.opportunities.change);
-            }
-        }
-
-        function updateChange(elementId, change) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-
-            const changeVal = parseFloat(change) || 0;
-            const isUp = changeVal >= 0;
-            el.className = 'stat-change ' + (isUp ? 'up' : 'down');
-            el.textContent = (isUp ? '↑' : '↓') + ' ' + Math.abs(changeVal) + '% from last period';
-        }
-
-        function updateCharts(chartsData) {
-            // Destroy existing charts
-            Object.values(charts).forEach(chart => chart.destroy());
-            charts = {};
-
-            const chartColors = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-
-            // Charges Trend
-            if (chartsData.charges_trend) {
-                const ctx = document.getElementById('chart-charges-trend');
-                if (ctx) {
-                    charts.charges = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: chartsData.charges_trend.labels,
-                            datasets: [{
-                                label: 'Charges',
-                                data: chartsData.charges_trend.values,
-                                borderColor: '#667eea',
-                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return currencySymbol + value.toLocaleString();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-
-            // Opportunities by Status
-            if (chartsData.opp_status && chartsData.opp_status.labels.length > 0) {
-                const ctx = document.getElementById('chart-opp-status');
-                if (ctx) {
-                    charts.oppStatus = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: chartsData.opp_status.labels,
-                            datasets: [{
-                                data: chartsData.opp_status.values,
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
-            }
-
-            // Top Products
-            if (chartsData.top_products && chartsData.top_products.labels.length > 0) {
-                const ctx = document.getElementById('chart-top-products');
-                if (ctx) {
-                    charts.topProducts = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: chartsData.top_products.labels.slice(0, 10),
-                            datasets: [{
-                                label: 'Revenue',
-                                data: chartsData.top_products.values.slice(0, 10),
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            indexAxis: 'y',
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                x: {
-                                    ticks: {
-                                        callback: function(value) {
-                                            return currencySymbol + value.toLocaleString();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            } else {
-                // Show "No data" message for top products
-                const ctx = document.getElementById('chart-top-products');
-                if (ctx) {
-                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No product revenue data available yet</p>';
-                }
-            }
-
-            // Customer Segments
-            if (chartsData.customer_segments && chartsData.customer_segments.labels.length > 0) {
-                const ctx = document.getElementById('chart-customers');
-                if (ctx) {
-                    charts.customers = new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: chartsData.customer_segments.labels,
-                            datasets: [{
-                                data: chartsData.customer_segments.values,
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
-            }
-
-            // Project Categories (uses projects_by_category from API)
-            if (chartsData.projects_by_category && chartsData.projects_by_category.labels.length > 0) {
-                const ctx = document.getElementById('chart-project-categories');
-                if (ctx) {
-                    charts.projectCategories = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: chartsData.projects_by_category.labels,
-                            datasets: [{
-                                data: chartsData.projects_by_category.values,
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
-            } else {
-                const ctx = document.getElementById('chart-project-categories');
-                if (ctx) {
-                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No project category data available</p>';
-                }
-            }
-
-            // Charges by Category (uses charges_by_category from API)
-            if (chartsData.charges_by_category && chartsData.charges_by_category.labels.length > 0) {
-                const ctx = document.getElementById('chart-category-charges');
-                if (ctx) {
-                    charts.categoryCharges = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: chartsData.charges_by_category.labels,
-                            datasets: [{
-                                label: 'Charges',
-                                data: chartsData.charges_by_category.values,
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: {
-                                    ticks: {
-                                        callback: function(value) {
-                                            return currencySymbol + value.toLocaleString();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            } else {
-                const ctx = document.getElementById('chart-category-charges');
-                if (ctx) {
-                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No category charges data available</p>';
-                }
-            }
-
-            // Opportunity Types
-            if (chartsData.opportunity_types && chartsData.opportunity_types.labels.length > 0) {
-                const ctx = document.getElementById('chart-opportunity-types');
-                if (ctx) {
-                    charts.opportunityTypes = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: chartsData.opportunity_types.labels,
-                            datasets: [{
-                                data: chartsData.opportunity_types.values,
-                                backgroundColor: chartColors
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
-            } else {
-                const ctx = document.getElementById('chart-opportunity-types');
-                if (ctx) {
-                    ctx.parentElement.innerHTML = '<p class="text-muted text-center" style="padding: 100px 20px;">No opportunity type data available</p>';
-                }
-            }
-        }
-
-        function updateTimeline(timeline) {
-            const container = document.getElementById('activity-timeline');
-            if (!container) return;
-
-            if (!timeline || timeline.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No recent activity</p>';
-                return;
-            }
-
-            container.innerHTML = timeline.map(item => {
-                const date = new Date(item.date);
-                const formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-
-                return `
-                    <div class="timeline-item">
-                        <div class="timeline-date">${formattedDate}</div>
-                        <div class="timeline-title">${escapeHtml(item.title)}</div>
-                        <div class="timeline-desc">${escapeHtml(item.description)}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Report Widget Functions
-        let savedReports = [];
-        let reportWidgets = [];
-        let reportWidgetCharts = {};
-
-        // Load saved reports for widget selection
-        async function loadSavedReports() {
-            try {
-                const response = await fetch('api/dashboard/list-reports.php');
-                const data = await response.json();
-
-                if (data.error) {
-                    document.getElementById('saved-reports-list').innerHTML =
-                        '<div class="text-muted" style="font-size: 12px;">Failed to load reports</div>';
-                    return;
-                }
-
-                savedReports = data.reports || [];
-
-                // Update the saved reports list in widget panel
-                const listContainer = document.getElementById('saved-reports-list');
-                if (savedReports.length === 0) {
-                    listContainer.innerHTML = '<div class="text-muted" style="font-size: 12px;">No saved reports yet</div>';
-                } else {
-                    listContainer.innerHTML = savedReports.slice(0, 5).map(report => `
-                        <div class="widget-option" style="font-size: 13px;">
-                            <span style="flex: 1;">${escapeHtml(report.name)}</span>
-                            <button type="button" class="btn btn-xs" onclick="quickAddReportWidget(${report.id})" title="Add as widget">+</button>
-                        </div>
-                    `).join('');
-                }
-
-                // Update the modal select
-                const select = document.getElementById('widget-report-id');
-                select.innerHTML = '<option value="">Select a report...</option>' +
-                    savedReports.map(r => `<option value="${r.id}" data-module="${r.module}">${escapeHtml(r.name)} (${r.module})</option>`).join('');
-
-            } catch (error) {
-                console.error('Failed to load saved reports:', error);
-                document.getElementById('saved-reports-list').innerHTML =
-                    '<div class="text-muted" style="font-size: 12px;">Failed to load reports</div>';
-            }
-        }
-
-        // Load saved widgets from localStorage
-        function loadReportWidgets() {
-            const saved = localStorage.getItem('reportWidgets');
-            if (saved) {
-                try {
-                    reportWidgets = JSON.parse(saved);
-                    renderReportWidgets();
-                } catch (e) {
-                    reportWidgets = [];
-                }
-            }
-        }
-
-        function saveReportWidgets() {
-            localStorage.setItem('reportWidgets', JSON.stringify(reportWidgets));
-        }
-
-        // Quick add a report widget with default settings
-        function quickAddReportWidget(reportId) {
-            const report = savedReports.find(r => r.id === reportId);
-            if (!report) return;
-
-            const widget = {
-                id: 'rw_' + Date.now(),
-                reportId: reportId,
-                reportName: report.name,
-                type: 'stat_card',
-                aggregateField: '',
-                groupBy: '',
-                aggregateFunc: 'count',
-                limit: 10
-            };
-
-            reportWidgets.push(widget);
-            saveReportWidgets();
-            renderReportWidgets();
-            loadReportWidgetData(widget);
-            App.showNotification('Widget added', 'success');
-        }
-
-        // Open modal to add report widget
-        function addReportWidget() {
-            document.getElementById('widget-panel').classList.remove('active');
-            document.getElementById('report-widget-modal').classList.add('active');
-            updateModalFields();
-        }
-
-        function closeReportWidgetModal() {
-            document.getElementById('report-widget-modal').classList.remove('active');
-            document.getElementById('report-widget-form').reset();
-        }
-
-        // Show/hide fields based on widget type
-        function updateModalFields() {
-            const type = document.getElementById('widget-type').value;
-            const isChart = type.startsWith('chart_');
-            const isStatCard = type === 'stat_card';
-            const isTable = type === 'table';
-
-            document.getElementById('widget-aggregate-field-group').style.display = (isChart || isStatCard) ? 'block' : 'none';
-            document.getElementById('widget-group-by-group').style.display = isChart ? 'block' : 'none';
-            document.getElementById('widget-aggregate-func-group').style.display = (isChart || isStatCard) ? 'block' : 'none';
-            document.getElementById('widget-limit-group').style.display = (isChart || isTable) ? 'block' : 'none';
-        }
-
-        // Handle widget type change
-        document.getElementById('widget-type')?.addEventListener('change', updateModalFields);
-
-        // Handle form submission
-        document.getElementById('report-widget-form')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const reportId = parseInt(document.getElementById('widget-report-id').value);
-            const report = savedReports.find(r => r.id === reportId);
-            if (!report) {
-                App.showNotification('Please select a report', 'error');
-                return;
-            }
-
-            const widget = {
-                id: 'rw_' + Date.now(),
-                reportId: reportId,
-                reportName: report.name,
-                type: document.getElementById('widget-type').value,
-                aggregateField: document.getElementById('widget-aggregate-field').value,
-                groupBy: document.getElementById('widget-group-by').value,
-                aggregateFunc: document.getElementById('widget-aggregate-func').value,
-                limit: parseInt(document.getElementById('widget-limit').value) || 10
-            };
-
-            reportWidgets.push(widget);
-            saveReportWidgets();
-            closeReportWidgetModal();
-            renderReportWidgets();
-            loadReportWidgetData(widget);
-            App.showNotification('Widget added', 'success');
-        });
-
-        // Render all report widgets
-        function renderReportWidgets() {
-            const container = document.getElementById('report-widgets-container');
-            if (!container) return;
-
-            if (reportWidgets.length === 0) {
-                container.style.display = 'none';
-                return;
-            }
-
-            container.style.display = 'grid';
-            container.innerHTML = reportWidgets.map(widget => {
-                const isChart = widget.type.startsWith('chart_');
-                const isTable = widget.type === 'table';
-                const isStatCard = widget.type === 'stat_card';
-
-                return `
-                    <div class="card report-widget-card" id="widget-${widget.id}" data-widget-id="${widget.id}">
-                        <div class="widget-actions">
-                            <button type="button" class="widget-refresh-btn" data-widget-id="${widget.id}" title="Refresh">↻</button>
-                            <button type="button" class="widget-remove-btn" data-widget-id="${widget.id}" title="Remove">×</button>
-                        </div>
-                        <div class="card-header">
-                            <h3 class="card-title">${escapeHtml(widget.reportName)}</h3>
-                        </div>
-                        <div class="card-body">
-                            ${isStatCard ? `
-                                <div class="widget-stat-value" id="stat-${widget.id}">
-                                    <div class="spinner" style="width: 20px; height: 20px;"></div>
-                                </div>
-                                <div class="widget-stat-label" id="stat-label-${widget.id}">Loading...</div>
-                            ` : ''}
-                            ${isChart ? `
-                                <div class="chart-container" style="height: 300px;">
-                                    <canvas id="chart-${widget.id}"></canvas>
-                                </div>
-                            ` : ''}
-                            ${isTable ? `
-                                <div class="table-responsive" id="table-${widget.id}" style="max-height: 300px; overflow-y: auto;">
-                                    <div class="text-center"><div class="spinner"></div></div>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // Attach event listeners using event delegation
-            container.querySelectorAll('.widget-refresh-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const widgetId = this.getAttribute('data-widget-id');
-                    refreshReportWidget(widgetId);
-                });
-            });
-
-            container.querySelectorAll('.widget-remove-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const widgetId = this.getAttribute('data-widget-id');
-                    removeReportWidget(widgetId);
-                });
-            });
-
-            // Load data for all widgets
-            reportWidgets.forEach(loadReportWidgetData);
-        }
-
-        // Load data for a single widget
-        async function loadReportWidgetData(widget) {
             try {
                 const params = new URLSearchParams({
-                    report_id: widget.reportId,
-                    type: widget.type,
-                    limit: widget.limit
+                    from: currentDateRange.from,
+                    to: currentDateRange.to
                 });
-
-                if (widget.aggregateField) {
-                    params.append('aggregate_field', widget.aggregateField);
-                }
-                if (widget.groupBy) {
-                    params.append('group_by', widget.groupBy);
-                }
-                if (widget.aggregateFunc) {
-                    params.append('aggregate_func', widget.aggregateFunc);
-                }
-
-                const response = await fetch(`api/dashboard/report-widget.php?${params}`);
+                const response = await fetch(`api/analytics/project-charges.php?${params}`);
                 const data = await response.json();
 
-                if (data.error) {
-                    console.error('Widget error:', data.error);
-                    showWidgetError(widget.id, data.error);
-                    return;
-                }
+                if (!data.success) throw new Error(data.error || 'Failed to load');
 
-                renderWidgetData(widget, data);
+                renderProjectCharges(data.data);
             } catch (error) {
-                console.error('Failed to load widget data:', error);
-                showWidgetError(widget.id, error.message);
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
             }
         }
 
-        function showWidgetError(widgetId, message) {
-            const card = document.getElementById('widget-' + widgetId);
-            if (card) {
-                const body = card.querySelector('.card-body');
-                if (body) {
-                    body.innerHTML = `<div class="text-muted text-center" style="padding: 40px 20px;">Error: ${escapeHtml(message)}</div>`;
-                }
-            }
-        }
+        function renderProjectCharges(data) {
+            const container = document.getElementById('project-charges-table');
 
-        function renderWidgetData(widget, data) {
-            if (widget.type === 'stat_card') {
-                const valueEl = document.getElementById('stat-' + widget.id);
-                const labelEl = document.getElementById('stat-label-' + widget.id);
-                if (valueEl) {
-                    const value = data.value ?? data.count ?? 0;
-                    const isMonetary = widget.aggregateField &&
-                        (widget.aggregateField.includes('charge') || widget.aggregateField.includes('price') || widget.aggregateField.includes('cost'));
-                    valueEl.textContent = isMonetary
-                        ? currencySymbol + parseFloat(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
-                        : parseFloat(value).toLocaleString();
-                }
-                if (labelEl) {
-                    labelEl.textContent = widget.aggregateFunc === 'count'
-                        ? `${data.count} records`
-                        : `${widget.aggregateFunc} of ${widget.aggregateField || 'records'}`;
-                }
-            } else if (widget.type.startsWith('chart_')) {
-                renderWidgetChart(widget, data);
-            } else if (widget.type === 'table') {
-                renderWidgetTable(widget, data);
-            }
-        }
-
-        function renderWidgetChart(widget, data) {
-            const ctx = document.getElementById('chart-' + widget.id);
-            if (!ctx || !data.chart) return;
-
-            // Destroy existing chart if any
-            if (reportWidgetCharts[widget.id]) {
-                reportWidgetCharts[widget.id].destroy();
-            }
-
-            const chartType = widget.type.replace('chart_', '');
-            const chartColors = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-
-            const config = {
-                type: chartType,
-                data: {
-                    labels: data.chart.labels,
-                    datasets: [{
-                        label: widget.reportName,
-                        data: data.chart.values,
-                        backgroundColor: chartType === 'line' ? 'rgba(102, 126, 234, 0.1)' : chartColors,
-                        borderColor: chartType === 'line' ? '#667eea' : undefined,
-                        fill: chartType === 'line',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: chartType === 'pie' || chartType === 'doughnut', position: 'bottom' }
-                    }
-                }
-            };
-
-            if (chartType === 'bar') {
-                config.options.indexAxis = 'y';
-            }
-
-            reportWidgetCharts[widget.id] = new Chart(ctx, config);
-        }
-
-        function renderWidgetTable(widget, data) {
-            const container = document.getElementById('table-' + widget.id);
-            if (!container || !data.data) return;
-
-            if (data.data.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No data available</p>';
-                return;
-            }
-
-            const columns = (data.columns && data.columns.length > 0) ? data.columns : Object.keys(data.data[0] || {});
-            const displayCols = columns.slice(0, 5); // Limit columns for widget
-
-            let html = '<table class="table table-sm"><thead><tr>';
-            displayCols.forEach(col => {
-                html += `<th>${escapeHtml(col)}</th>`;
-            });
-            html += '</tr></thead><tbody>';
-
-            data.data.forEach(row => {
-                html += '<tr>';
-                displayCols.forEach(col => {
-                    const value = row[col] ?? '';
-                    html += `<td>${escapeHtml(String(value))}</td>`;
-                });
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            if (data.total > data.data.length) {
-                html += `<div class="text-muted text-center" style="font-size: 12px;">Showing ${data.data.length} of ${data.total}</div>`;
-            }
-
-            container.innerHTML = html;
-        }
-
-        function refreshReportWidget(widgetId) {
-            const widget = reportWidgets.find(w => w.id === widgetId);
-            if (widget) {
-                loadReportWidgetData(widget);
-            }
-        }
-
-        function removeReportWidget(widgetId) {
-            if (!confirm('Remove this widget?')) return;
-
-            // Destroy chart if exists
-            if (reportWidgetCharts[widgetId]) {
-                reportWidgetCharts[widgetId].destroy();
-                delete reportWidgetCharts[widgetId];
-            }
-
-            reportWidgets = reportWidgets.filter(w => w.id !== widgetId);
-            saveReportWidgets();
-            renderReportWidgets();
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('report-widget-modal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeReportWidgetModal();
-            }
-        });
-
-        // ========================================
-        // Under-Rate Quotes Report Functions
-        // ========================================
-
-        async function loadUnderRateQuotes() {
-            const minDiscount = document.getElementById('under-rate-min-discount')?.value || 10;
-            // Look back 90 days and forward 365 days to cover all active/upcoming opportunities
-            const pastDays = 90;
-            const futureDays = 365;
-
-            // Show loading state
-            document.getElementById('under-rate-total-items').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
-            document.getElementById('under-rate-lost-revenue').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
-            document.getElementById('under-rate-avg-discount').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
-            document.getElementById('under-rate-owners').innerHTML = '<div class="spinner" style="width: 16px; height: 16px;"></div>';
-            document.getElementById('under-rate-by-owner').innerHTML = '<div class="text-center text-muted"><div class="spinner" style="width: 20px; height: 20px;"></div></div>';
-            document.getElementById('under-rate-items-table').innerHTML = '<div class="text-center text-muted"><div class="spinner" style="width: 20px; height: 20px;"></div></div>';
-
-            try {
-                const response = await fetch(`api/analytics/under-rate-quotes.php?past_days=${pastDays}&future_days=${futureDays}&min_discount=${minDiscount}`);
-                const result = await response.json();
-
-                if (!result.success) {
-                    throw new Error(result.error || 'Failed to load data');
-                }
-
-                const data = result.data;
-                const totals = data.totals;
-
-                // Update summary cards
-                document.getElementById('under-rate-total-items').textContent = totals.total_items.toLocaleString();
-                document.getElementById('under-rate-lost-revenue').textContent = currencySymbol + totals.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('under-rate-avg-discount').textContent = totals.avg_discount + '%';
-                document.getElementById('under-rate-owners').textContent = totals.unique_owners.toLocaleString();
-
-                // Render owner summary
-                renderUnderRateByOwner(data.owner_summary);
-
-                // Render items table
-                renderUnderRateItems(data.items);
-
-            } catch (error) {
-                console.error('Failed to load under-rate quotes:', error);
-                document.getElementById('under-rate-total-items').textContent = '-';
-                document.getElementById('under-rate-lost-revenue').textContent = '-';
-                document.getElementById('under-rate-avg-discount').textContent = '-';
-                document.getElementById('under-rate-owners').textContent = '-';
-                document.getElementById('under-rate-by-owner').innerHTML = `<p class="text-muted">Error: ${escapeHtml(error.message)}</p>`;
-                document.getElementById('under-rate-items-table').innerHTML = '';
-            }
-        }
-
-        function renderUnderRateByOwner(owners) {
-            const container = document.getElementById('under-rate-by-owner');
-
-            if (!owners || owners.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No under-rate quotes found</p>';
-                return;
-            }
-
-            let html = '<div class="under-rate-owners">';
-            owners.forEach((owner, index) => {
-                const bgColor = index === 0 ? 'var(--danger-50, #fef2f2)' : 'var(--gray-50)';
-                const borderColor = index === 0 ? 'var(--danger-200, #fecaca)' : 'var(--gray-200)';
-                html += `
-                    <div class="under-rate-owner-item" style="padding: 10px; margin-bottom: 8px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong style="font-size: 13px;">${escapeHtml(owner.owner)}</strong>
-                            <span class="badge badge-warning" style="font-size: 11px;">${owner.total_items} items</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--gray-600);">
-                            <span>Lost: <strong class="text-danger">${currencySymbol}${owner.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong></span>
-                            <span>Avg: <strong>${owner.avg_discount}%</strong> off</span>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-        }
-
-        function renderUnderRateItems(items) {
-            const container = document.getElementById('under-rate-items-table');
-
-            if (!items || items.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No discounted items found</p>';
+            if (!data.categories || data.categories.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No project data available</p>';
                 return;
             }
 
             let html = `
-                <table class="table table-sm" style="font-size: 12px;">
+                <table class="category-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th style="text-align: right;">Projects</th>
+                            <th style="text-align: right;">Charges</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.categories.forEach(cat => {
+                html += `
+                    <tr>
+                        <td>${escapeHtml(cat.name)}</td>
+                        <td style="text-align: right;">${cat.count}</td>
+                        <td style="text-align: right;">${currencySymbol}${parseFloat(cat.charges).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    <tr class="total-row">
+                        <td><strong>Total</strong></td>
+                        <td style="text-align: right;"><strong>${data.total_projects}</strong></td>
+                        <td style="text-align: right;"><strong>${currencySymbol}${parseFloat(data.total_charges).toLocaleString(undefined, {minimumFractionDigits: 2})}</strong></td>
+                    </tr>
+                </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Load Project Forecast
+        async function loadProjectForecast() {
+            const container = document.getElementById('project-forecast-table');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    from: currentDateRange.from,
+                    to: currentDateRange.to
+                });
+                const response = await fetch(`api/analytics/project-forecast.php?${params}`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                renderProjectForecast(data.data);
+            } catch (error) {
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        function renderProjectForecast(data) {
+            const container = document.getElementById('project-forecast-table');
+
+            if (!data.categories || data.categories.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No forecast data available</p>';
+                return;
+            }
+
+            let html = `
+                <table class="category-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th style="text-align: right;">Projects</th>
+                            <th style="text-align: right;">Forecast</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.categories.forEach(cat => {
+                html += `
+                    <tr>
+                        <td>${escapeHtml(cat.name)}</td>
+                        <td style="text-align: right;">${cat.count}</td>
+                        <td style="text-align: right;">${currencySymbol}${parseFloat(cat.charges).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    <tr class="total-row">
+                        <td><strong>Total Forecast</strong></td>
+                        <td style="text-align: right;"><strong>${data.total_projects}</strong></td>
+                        <td style="text-align: right;"><strong>${currencySymbol}${parseFloat(data.total_charges).toLocaleString(undefined, {minimumFractionDigits: 2})}</strong></td>
+                    </tr>
+                </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Load Top Products by Charges
+        async function loadTopProductsByCharges() {
+            const container = document.getElementById('top-products-charges');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    from: currentDateRange.from,
+                    to: currentDateRange.to,
+                    limit: 20
+                });
+                const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                renderProductList(container, data.data, 'charges');
+            } catch (error) {
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        // Load Top Products by Utilisation
+        async function loadTopProductsByUtilisation() {
+            const container = document.getElementById('top-products-utilisation');
+            container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    from: currentDateRange.from,
+                    to: currentDateRange.to,
+                    limit: 20
+                });
+                const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                renderProductList(container, data.data, 'utilisation');
+            } catch (error) {
+                container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        function renderProductList(container, products, type) {
+            if (!products || products.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No product data available</p>';
+                return;
+            }
+
+            let html = '';
+            products.forEach((product, index) => {
+                const rankClass = index < 3 ? 'top-3' : '';
+                const value = type === 'charges'
+                    ? `${currencySymbol}${parseFloat(product.charges).toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                    : `${product.count} times`;
+
+                html += `
+                    <div class="product-item">
+                        <span class="product-rank ${rankClass}">${index + 1}</span>
+                        <div class="product-info">
+                            <div class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</div>
+                        </div>
+                        <div class="product-value">${value}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Under-Rate Quotes
+        async function loadUnderRateQuotes() {
+            const pastDays = document.getElementById('under-rate-past')?.value || 90;
+            const futureDays = document.getElementById('under-rate-future')?.value || 365;
+            const minDiscount = document.getElementById('under-rate-min-discount')?.value || 10;
+
+            // Show loading
+            document.getElementById('under-rate-total-items').textContent = '-';
+            document.getElementById('under-rate-lost-revenue').textContent = '-';
+            document.getElementById('under-rate-avg-discount').textContent = '-';
+            document.getElementById('under-rate-owners').textContent = '-';
+            document.getElementById('owners-accordion').innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
+
+            try {
+                const params = new URLSearchParams({
+                    past_days: pastDays,
+                    future_days: futureDays,
+                    min_discount: minDiscount
+                });
+                const response = await fetch(`api/analytics/under-rate-quotes.php?${params}`);
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.error || 'Failed to load');
+
+                const data = result.data;
+                const totals = data.totals;
+
+                // Update summary
+                document.getElementById('under-rate-total-items').textContent = totals.total_items.toLocaleString();
+                document.getElementById('under-rate-lost-revenue').textContent = currencySymbol + totals.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('under-rate-avg-discount').textContent = totals.avg_discount + '%';
+                document.getElementById('under-rate-owners').textContent = totals.unique_owners.toLocaleString();
+
+                // Render owners accordion
+                renderOwnersAccordion(data.owner_summary, data.items);
+
+            } catch (error) {
+                console.error('Under-rate quotes error:', error);
+                document.getElementById('owners-accordion').innerHTML = `<p class="text-muted text-center" style="padding: 20px;">Error: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
+        function renderOwnersAccordion(owners, allItems) {
+            const container = document.getElementById('owners-accordion');
+
+            if (!owners || owners.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center" style="padding: 20px;">No under-rate quotes found</p>';
+                return;
+            }
+
+            // Group items by owner
+            const itemsByOwner = {};
+            allItems.forEach(item => {
+                const ownerName = item.owner || 'Unknown';
+                if (!itemsByOwner[ownerName]) {
+                    itemsByOwner[ownerName] = [];
+                }
+                itemsByOwner[ownerName].push(item);
+            });
+
+            let html = '';
+            owners.forEach((owner, index) => {
+                const ownerItems = itemsByOwner[owner.owner] || [];
+                const ownerId = `owner-${index}`;
+
+                html += `
+                    <div class="owner-item">
+                        <div class="owner-header" onclick="toggleOwner('${ownerId}')">
+                            <span class="owner-name">${escapeHtml(owner.owner)}</span>
+                            <div class="owner-stats">
+                                <div class="stat">
+                                    <span class="stat-label">Items</span>
+                                    <span class="stat-value">${owner.total_items}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Lost Revenue</span>
+                                    <span class="stat-value danger">${currencySymbol}${owner.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Avg Discount</span>
+                                    <span class="stat-value">${owner.avg_discount}%</span>
+                                </div>
+                                <svg class="owner-toggle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="owner-content" id="${ownerId}">
+                            ${renderOwnerItems(ownerItems)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderOwnerItems(items) {
+            if (items.length === 0) {
+                return '<p class="text-muted text-center" style="padding: 16px;">No items</p>';
+            }
+
+            let html = `
+                <table class="owner-items-table">
                     <thead>
                         <tr>
                             <th>Opportunity</th>
-                            <th>Status / Date</th>
+                            <th>Status</th>
                             <th>Item</th>
-                            <th>Owner</th>
                             <th style="text-align: right;">Price</th>
                             <th style="text-align: right;">Charged</th>
                             <th style="text-align: right;">Discount</th>
@@ -1590,49 +1012,43 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
                     <tbody>
             `;
 
-            items.slice(0, 25).forEach(item => {
-                const discountClass = item.discount_percent >= 50 ? 'text-danger' : (item.discount_percent >= 25 ? 'text-warning' : '');
+            items.slice(0, 50).forEach(item => {
                 const startsAt = item.starts_at ? new Date(item.starts_at).toLocaleDateString() : '-';
-                const statusBadge = getStatusBadge(item.opportunity_status);
-                const itemName = item.item_name || item.product_name || 'Unknown';
-                const price = item.price || 0;
-                const chargeTotal = item.charge_total || 0;
+                const discountClass = item.discount_percent >= 50 ? 'text-danger' : (item.discount_percent >= 25 ? 'text-warning' : '');
+
                 html += `
                     <tr>
                         <td>
-                            <a href="#" onclick="window.open('https://<?php echo e(config('currentrms.subdomain')); ?>.current-rms.com/opportunities/${item.opportunity_id}', '_blank'); return false;" style="font-weight: 500;">
-                                ${escapeHtml(item.opportunity_subject.substring(0, 30))}${item.opportunity_subject.length > 30 ? '...' : ''}
+                            <a href="https://${subdomain}.current-rms.com/opportunities/${item.opportunity_id}" target="_blank" style="font-weight: 500;">
+                                ${escapeHtml((item.opportunity_subject || '').substring(0, 25))}${(item.opportunity_subject || '').length > 25 ? '...' : ''}
                             </a>
-                            <div style="font-size: 11px; color: var(--gray-500);">${escapeHtml((item.customer || '').substring(0, 25))}</div>
+                            <div style="font-size: 10px; color: var(--gray-500);">${startsAt}</div>
                         </td>
-                        <td>
-                            ${statusBadge}
-                            <div style="font-size: 10px; color: var(--gray-500); margin-top: 2px;">${startsAt}</div>
-                        </td>
-                        <td>
-                            ${escapeHtml(itemName.substring(0, 30))}${itemName.length > 30 ? '...' : ''}
-                            <div style="font-size: 11px; color: var(--gray-500);">Qty: ${item.quantity}</div>
-                        </td>
-                        <td style="font-size: 11px;">${escapeHtml(item.owner || 'Unknown')}</td>
-                        <td style="text-align: right;">${currencySymbol}${price.toFixed(2)}</td>
-                        <td style="text-align: right;">${currencySymbol}${chargeTotal.toFixed(2)}</td>
-                        <td style="text-align: right;" class="${discountClass}">
-                            <strong>${item.discount_percent}%</strong>
-                        </td>
-                        <td style="text-align: right;" class="text-danger">
-                            ${currencySymbol}${item.lost_revenue.toFixed(2)}
-                        </td>
+                        <td>${getStatusBadge(item.opportunity_status)}</td>
+                        <td title="${escapeHtml(item.item_name || '')}">${escapeHtml((item.item_name || '').substring(0, 25))}${(item.item_name || '').length > 25 ? '...' : ''}</td>
+                        <td style="text-align: right;">${currencySymbol}${(item.price || 0).toFixed(2)}</td>
+                        <td style="text-align: right;">${currencySymbol}${(item.charge_total || 0).toFixed(2)}</td>
+                        <td style="text-align: right;" class="${discountClass}"><strong>${item.discount_percent}%</strong></td>
+                        <td style="text-align: right;" class="text-danger">${currencySymbol}${(item.lost_revenue || 0).toFixed(2)}</td>
                     </tr>
                 `;
             });
 
             html += '</tbody></table>';
 
-            if (items.length > 25) {
-                html += `<div class="text-muted text-center" style="font-size: 11px; margin-top: 8px;">Showing 25 of ${items.length} items</div>`;
+            if (items.length > 50) {
+                html += `<p class="text-muted text-center" style="font-size: 11px; padding: 8px;">Showing 50 of ${items.length} items</p>`;
             }
 
-            container.innerHTML = html;
+            return html;
+        }
+
+        function toggleOwner(ownerId) {
+            const content = document.getElementById(ownerId);
+            const header = content.previousElementSibling;
+
+            content.classList.toggle('expanded');
+            header.classList.toggle('expanded');
         }
 
         function getStatusBadge(status) {
@@ -1645,18 +1061,26 @@ $currencySymbol = config('app.currency_symbol') ?? '£';
             } else if (statusLower.includes('closed') || statusLower.includes('cancelled')) {
                 badgeClass = 'badge-danger';
             }
-            return `<span class="badge ${badgeClass}" style="font-size: 10px;">${escapeHtml(status)}</span>`;
+            return `<span class="badge ${badgeClass}">${escapeHtml(status || 'Unknown')}</span>`;
         }
 
-        // Listen for min discount change
-        document.getElementById('under-rate-min-discount')?.addEventListener('change', loadUnderRateQuotes);
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-        // Initialize report widgets on page load
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            loadSavedReports();
-            loadReportWidgets();
-            loadUnderRateQuotes();
+            initDates();
+            loadAllData();
         });
+
+        // Listen for control changes
+        document.getElementById('under-rate-past')?.addEventListener('change', loadUnderRateQuotes);
+        document.getElementById('under-rate-future')?.addEventListener('change', loadUnderRateQuotes);
+        document.getElementById('under-rate-min-discount')?.addEventListener('change', loadUnderRateQuotes);
     </script>
 </body>
 </html>
