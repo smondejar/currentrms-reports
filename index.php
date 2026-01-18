@@ -459,7 +459,7 @@ if ($api) {
     </div>
 
     <!-- Add Widget Modal -->
-    <div class="modal-overlay" id="add-widget-modal" style="display: none;">
+    <div class="modal-overlay" id="add-widget-modal">
         <div class="modal" style="max-width: 600px;">
             <div class="modal-header">
                 <h3 class="modal-title">Add Report Widget</h3>
@@ -673,7 +673,7 @@ if ($api) {
                 alert('Error: Widget modal not found');
                 return;
             }
-            modal.style.display = 'flex';
+            modal.classList.add('active');
 
             // Reset form
             document.getElementById('widget-report-select').value = '';
@@ -735,7 +735,7 @@ if ($api) {
         }
 
         function hideAddWidgetModal() {
-            document.getElementById('add-widget-modal').style.display = 'none';
+            document.getElementById('add-widget-modal').classList.remove('active');
         }
 
         async function onReportSelected() {
