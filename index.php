@@ -560,17 +560,32 @@ if ($api) {
             <?php endif; ?>
         });
 
+        // Get CSRF token helper
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            const token = meta ? meta.getAttribute('content') : '';
+            console.log('CSRF Token from meta:', token ? token.substring(0, 10) + '...' : 'EMPTY');
+            return token;
+        }
+
         // Invoice Actions
         async function issueInvoice(invoiceId) {
             if (!confirm('Issue this invoice? This will send it to the customer.')) return;
+
+            const csrfToken = getCsrfToken();
+            if (!csrfToken) {
+                alert('Error: CSRF token not found. Please refresh the page.');
+                return;
+            }
 
             try {
                 const response = await fetch('api/invoices/action.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        'X-CSRF-Token': csrfToken
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ invoice_id: invoiceId, action: 'issue' })
                 });
 
@@ -585,7 +600,7 @@ if ($api) {
                     // Reload page to update buttons
                     location.reload();
                 } else {
-                    alert('Error: ' + (result.error || 'Failed to issue invoice'));
+                    alert('Error: ' + (result.error || 'Failed to issue invoice') + (result.hint ? ' (' + result.hint + ')' : ''));
                 }
             } catch (e) {
                 alert('Error: ' + e.message);
@@ -595,13 +610,20 @@ if ($api) {
         async function markInvoicePaid(invoiceId) {
             if (!confirm('Mark this invoice as paid?')) return;
 
+            const csrfToken = getCsrfToken();
+            if (!csrfToken) {
+                alert('Error: CSRF token not found. Please refresh the page.');
+                return;
+            }
+
             try {
                 const response = await fetch('api/invoices/action.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        'X-CSRF-Token': csrfToken
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ invoice_id: invoiceId, action: 'mark_paid' })
                 });
 
@@ -616,7 +638,7 @@ if ($api) {
                     // Reload page to update buttons
                     location.reload();
                 } else {
-                    alert('Error: ' + (result.error || 'Failed to mark invoice as paid'));
+                    alert('Error: ' + (result.error || 'Failed to mark invoice as paid') + (result.hint ? ' (' + result.hint + ')' : ''));
                 }
             } catch (e) {
                 alert('Error: ' + e.message);
@@ -644,7 +666,14 @@ if ($api) {
         });
 
         async function showAddWidgetModal() {
-            document.getElementById('add-widget-modal').style.display = 'flex';
+            const modal = document.getElementById('add-widget-modal');
+            if (!modal) {
+                console.error('Add widget modal not found');
+                alert('Error: Widget modal not found');
+                return;
+            }
+            modal.style.display = 'flex';
+
             // Reset form
             document.getElementById('widget-report-select').value = '';
             document.getElementById('widget-type-select').value = 'table';
@@ -655,25 +684,52 @@ if ($api) {
 
             // Load available reports
             try {
-                const response = await fetch('api/dashboard/list-reports.php');
-                const data = await response.json();
+                console.log('Fetching reports from api/dashboard/list-reports.php...');
+                const response = await fetch('api/dashboard/list-reports.php', {
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const text = await response.text();
+                console.log('Raw response:', text.substring(0, 200));
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    alert('Error: Server returned invalid JSON. Check console for details.');
+                    return;
+                }
+
                 if (data.success) {
-                    availableReports = data.reports;
+                    availableReports = data.reports || [];
                     const select = document.getElementById('widget-report-select');
                     select.innerHTML = '<option value="">-- Select a report --</option>';
-                    data.reports.forEach(report => {
-                        const option = document.createElement('option');
-                        option.value = report.id;
-                        option.textContent = `${report.name} (${report.module})`;
-                        option.dataset.module = report.module;
-                        option.dataset.config = JSON.stringify(report.config || {});
-                        select.appendChild(option);
-                    });
+
+                    if (availableReports.length === 0) {
+                        select.innerHTML = '<option value="">No reports available - create a report first</option>';
+                    } else {
+                        availableReports.forEach(report => {
+                            const option = document.createElement('option');
+                            option.value = report.id;
+                            option.textContent = `${report.name} (${report.module})`;
+                            option.dataset.module = report.module;
+                            option.dataset.config = JSON.stringify(report.config || {});
+                            select.appendChild(option);
+                        });
+                    }
+                    console.log('Loaded', availableReports.length, 'reports');
                 } else {
-                    console.error('Failed to load reports:', data.error);
+                    console.error('API error:', data.error);
+                    alert('Error loading reports: ' + (data.error || 'Unknown error'));
                 }
             } catch (e) {
                 console.error('Failed to load reports:', e);
+                alert('Error loading reports: ' + e.message);
             }
         }
 
@@ -795,8 +851,24 @@ if ($api) {
                 if (widget.aggregateField) params.append('aggregate_field', widget.aggregateField);
                 if (widget.aggregateFunc) params.append('aggregate_func', widget.aggregateFunc);
 
-                const response = await fetch(`api/dashboard/report-widget.php?${params}`);
-                const data = await response.json();
+                console.log('Fetching widget data:', `api/dashboard/report-widget.php?${params}`);
+                const response = await fetch(`api/dashboard/report-widget.php?${params}`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const text = await response.text();
+                console.log('Widget response:', text.substring(0, 200));
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON response: ' + text.substring(0, 100));
+                }
 
                 const body = widgetEl.querySelector('.widget-body');
                 if (data.error) {

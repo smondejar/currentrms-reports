@@ -22,12 +22,45 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Validate CSRF token
-$headers = getallheaders();
-$csrfToken = $headers['X-CSRF-Token'] ?? $headers['x-csrf-token'] ?? '';
+// Validate CSRF token - check multiple sources with case-insensitive header lookup
+$csrfToken = '';
+// Check $_SERVER first (most reliable)
+if (!empty($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'];
+} else {
+    // Fallback to getallheaders with case-insensitive lookup
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    if (is_array($headers)) {
+        foreach ($headers as $name => $value) {
+            if (strtolower($name) === 'x-csrf-token') {
+                $csrfToken = $value;
+                break;
+            }
+        }
+    }
+}
+
+// Also check Apache-style header transformation
+if (empty($csrfToken) && !empty($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'];
+}
+
+// Debug mode - remove in production
+if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+    echo json_encode([
+        'debug' => true,
+        'csrf_received' => $csrfToken,
+        'csrf_session' => $_SESSION['csrf_token'] ?? 'not set',
+        'session_id' => session_id(),
+        'headers' => function_exists('getallheaders') ? getallheaders() : 'not available',
+        'server_http' => array_filter($_SERVER, function($k) { return strpos($k, 'HTTP_') === 0; }, ARRAY_FILTER_USE_KEY)
+    ]);
+    exit;
+}
+
 if (!verifyCsrfToken($csrfToken)) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token', 'hint' => 'Token received: ' . (empty($csrfToken) ? 'empty' : 'present')]);
     exit;
 }
 
