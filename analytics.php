@@ -49,7 +49,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
             margin-bottom: 0;
         }
         .card-header {
-            padding: 6px 10px;
+            padding: 4px 8px;
         }
         .card-title {
             font-size: 13px;
@@ -58,67 +58,46 @@ $subdomain = config('currentrms.subdomain') ?? '';
         .card-body {
             overflow: hidden;
             max-width: 100%;
-            padding: 6px 8px;
+            padding: 4px 6px;
         }
 
-        /* Date Range Controls - Compact */
-        .date-controls {
+        /* Section Controls */
+        .section-controls {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
-            padding: 8px 12px;
-            background: var(--card-bg, #fff);
-            border-radius: 6px;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow-sm);
         }
-        .date-quick-btns {
-            display: flex;
-            gap: 4px;
+        .section-controls .btn {
+            padding: 3px 8px;
+            font-size: 10px;
         }
-        .date-quick-btns .btn {
-            padding: 4px 10px;
-            font-size: 11px;
-        }
-        .date-quick-btns .btn.active {
+        .section-controls .btn.active {
             background: var(--primary);
             color: #fff;
         }
-        .date-pickers {
+        .section-controls input[type="date"] {
+            padding: 2px 4px;
+            border: 1px solid var(--gray-300);
+            border-radius: 3px;
+            font-size: 10px;
+            max-width: 100px;
+        }
+        .section-controls .refresh-btn {
+            padding: 3px 6px;
+            font-size: 10px;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
         }
-        .date-pickers input[type="date"] {
-            padding: 4px 6px;
-            border: 1px solid var(--gray-300);
-            border-radius: 4px;
-            font-size: 11px;
-            background: var(--input-bg, #fff);
-            color: var(--text-color);
-            max-width: 120px;
+        .section-controls .refresh-btn svg {
+            width: 12px;
+            height: 12px;
         }
-        .date-pickers span {
+        .last-updated {
+            font-size: 9px;
             color: var(--gray-500);
-            font-size: 11px;
-        }
-        @media (max-width: 600px) {
-            .date-controls {
-                padding: 8px 10px;
-            }
-            .date-quick-btns .btn {
-                padding: 4px 8px;
-                font-size: 10px;
-            }
-            .date-pickers {
-                width: 100%;
-                justify-content: center;
-            }
-            .date-pickers input[type="date"] {
-                flex: 1;
-                max-width: none;
-            }
+            margin-left: auto;
         }
 
         /* Section Headers - Compact */
@@ -126,15 +105,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 6px;
+            margin-bottom: 8px;
+            padding: 6px 0;
             border-bottom: 2px solid var(--primary);
+            flex-wrap: wrap;
+            gap: 6px;
         }
         .section-header h2 {
             margin: 0;
             font-size: 14px;
             font-weight: 600;
             color: var(--text-color);
+            min-width: 80px;
         }
 
         /* Two Column Layout - Side by side on larger screens */
@@ -692,13 +674,6 @@ $subdomain = config('currentrms.subdomain') ?? '';
     </style>
 </head>
 <body>
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-overlay-text">Loading Analytics</div>
-        <div class="loading-overlay-subtext">Please wait...</div>
-    </div>
-
     <div class="app-layout">
         <?php include 'includes/partials/sidebar.php'; ?>
 
@@ -718,30 +693,21 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     </div>
                 <?php else: ?>
 
-                <!-- Global Date Range Controls -->
-                <div class="date-controls">
-                    <div class="date-quick-btns">
-                        <button class="btn btn-secondary" data-days="30">30 Days</button>
-                        <button class="btn btn-secondary active" data-days="90">90 Days</button>
-                        <button class="btn btn-secondary" data-days="365">Year</button>
-                    </div>
-                    <div class="date-pickers">
-                        <input type="date" id="date-from" title="From date">
-                        <span>to</span>
-                        <input type="date" id="date-to" title="To date">
-                    </div>
-                    <button class="btn btn-primary btn-sm" id="apply-dates">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 4v6h-6M1 20v-6h6"/>
-                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                        </svg>
-                        Apply
-                    </button>
-                </div>
-
                 <!-- PROJECTS SECTION -->
                 <div class="section-header">
                     <h2>Projects</h2>
+                    <div class="section-controls" id="projects-controls">
+                        <button class="btn btn-secondary" data-section="projects" data-days="30">30d</button>
+                        <button class="btn btn-secondary active" data-section="projects" data-days="90">90d</button>
+                        <button class="btn btn-secondary" data-section="projects" data-days="365">1y</button>
+                        <input type="date" id="projects-from" title="From">
+                        <input type="date" id="projects-to" title="To">
+                        <button class="btn btn-primary refresh-btn" onclick="loadProjectsSection()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
+                            Refresh
+                        </button>
+                        <span class="last-updated" id="projects-last-updated"></span>
+                    </div>
                 </div>
                 <div class="two-col-grid">
                     <!-- Project Charges by Category -->
@@ -781,6 +747,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 <!-- PRODUCTS SECTION -->
                 <div class="section-header">
                     <h2>Products</h2>
+                    <div class="section-controls" id="products-controls">
+                        <button class="btn btn-secondary" data-section="products" data-days="30">30d</button>
+                        <button class="btn btn-secondary active" data-section="products" data-days="90">90d</button>
+                        <button class="btn btn-secondary" data-section="products" data-days="365">1y</button>
+                        <input type="date" id="products-from" title="From">
+                        <input type="date" id="products-to" title="To">
+                        <button class="btn btn-primary refresh-btn" onclick="loadProductsSection()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
+                            Refresh
+                        </button>
+                        <span class="last-updated" id="products-last-updated"></span>
+                    </div>
                 </div>
                 <div class="two-col-grid">
                     <!-- Top 20 Products by Charges -->
@@ -813,6 +791,18 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 <!-- SERVICES SECTION -->
                 <div class="section-header">
                     <h2>Services</h2>
+                    <div class="section-controls" id="services-controls">
+                        <button class="btn btn-secondary" data-section="services" data-days="30">30d</button>
+                        <button class="btn btn-secondary active" data-section="services" data-days="90">90d</button>
+                        <button class="btn btn-secondary" data-section="services" data-days="365">1y</button>
+                        <input type="date" id="services-from" title="From">
+                        <input type="date" id="services-to" title="To">
+                        <button class="btn btn-primary refresh-btn" onclick="loadServicesSection()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/></svg>
+                            Refresh
+                        </button>
+                        <span class="last-updated" id="services-last-updated"></span>
+                    </div>
                 </div>
                 <div class="two-col-grid">
                     <!-- Top 20 Services by Charges -->
@@ -915,104 +905,216 @@ $subdomain = config('currentrms.subdomain') ?? '';
         const currencySymbol = '<?php echo e($currencySymbol); ?>';
         const subdomain = '<?php echo e($subdomain); ?>';
 
-        // Date state
-        let currentDateRange = {
-            days: 90,
-            from: null,
-            to: null
+        // Section-specific date states
+        const sectionDates = {
+            projects: { days: 90, from: null, to: null },
+            products: { days: 90, from: null, to: null },
+            services: { days: 90, from: null, to: null }
         };
 
-        // Initialize dates
-        function initDates() {
+        // Cache keys for localStorage
+        const CACHE_KEYS = {
+            projects: 'analytics_projects_cache',
+            products: 'analytics_products_cache',
+            services: 'analytics_services_cache',
+            underRate: 'analytics_under_rate_cache'
+        };
+
+        // Get date range for a section
+        function getDateRange(section) {
+            const state = sectionDates[section];
+            if (!state) return { from: null, to: null };
+
             const today = new Date();
+            const toDate = today.toISOString().split('T')[0];
+
+            // Check if custom dates are set
+            const fromInput = document.getElementById(`${section}-from`);
+            const toInput = document.getElementById(`${section}-to`);
+
+            if (fromInput?.value && toInput?.value) {
+                return { from: fromInput.value, to: toInput.value };
+            }
+
+            // Use days preset
             const fromDate = new Date();
-            fromDate.setDate(today.getDate() - 90);
-
-            document.getElementById('date-from').value = fromDate.toISOString().split('T')[0];
-            document.getElementById('date-to').value = today.toISOString().split('T')[0];
-
-            currentDateRange.from = fromDate.toISOString().split('T')[0];
-            currentDateRange.to = today.toISOString().split('T')[0];
+            fromDate.setDate(today.getDate() - (state.days || 90));
+            return { from: fromDate.toISOString().split('T')[0], to: toDate };
         }
 
-        // Quick date buttons
-        document.querySelectorAll('.date-quick-btns .btn').forEach(btn => {
+        // Initialize section date inputs with defaults
+        function initSectionDates(section) {
+            const today = new Date();
+            const fromDate = new Date();
+            fromDate.setDate(today.getDate() - (sectionDates[section]?.days || 90));
+
+            const fromInput = document.getElementById(`${section}-from`);
+            const toInput = document.getElementById(`${section}-to`);
+
+            if (fromInput) fromInput.value = fromDate.toISOString().split('T')[0];
+            if (toInput) toInput.value = today.toISOString().split('T')[0];
+        }
+
+        // Update last updated timestamp
+        function updateLastUpdated(section, timestamp) {
+            const el = document.getElementById(`${section}-last-updated`);
+            if (el && timestamp) {
+                const date = new Date(timestamp);
+                el.textContent = `Updated: ${date.toLocaleString()}`;
+            }
+        }
+
+        // Save data to cache
+        function saveToCache(key, data) {
+            try {
+                const cacheData = {
+                    timestamp: new Date().toISOString(),
+                    data: data
+                };
+                localStorage.setItem(key, JSON.stringify(cacheData));
+            } catch (e) {
+                console.warn('Failed to save to cache:', e);
+            }
+        }
+
+        // Load data from cache
+        function loadFromCache(key) {
+            try {
+                const cached = localStorage.getItem(key);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (e) {
+                console.warn('Failed to load from cache:', e);
+            }
+            return null;
+        }
+
+        // Section quick-date button handlers
+        document.querySelectorAll('.section-controls .btn[data-days]').forEach(btn => {
             btn.addEventListener('click', function() {
-                document.querySelectorAll('.date-quick-btns .btn').forEach(b => b.classList.remove('active'));
+                const section = this.dataset.section;
+                const days = parseInt(this.dataset.days);
+
+                // Update button states for this section only
+                document.querySelectorAll(`#${section}-controls .btn[data-days]`).forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
 
-                const days = parseInt(this.dataset.days);
-                currentDateRange.days = days;
+                // Update section state
+                sectionDates[section].days = days;
 
+                // Update date inputs
                 const today = new Date();
                 const fromDate = new Date();
                 fromDate.setDate(today.getDate() - days);
 
-                document.getElementById('date-from').value = fromDate.toISOString().split('T')[0];
-                document.getElementById('date-to').value = today.toISOString().split('T')[0];
+                const fromInput = document.getElementById(`${section}-from`);
+                const toInput = document.getElementById(`${section}-to`);
 
-                currentDateRange.from = fromDate.toISOString().split('T')[0];
-                currentDateRange.to = today.toISOString().split('T')[0];
-
-                loadAllData();
+                if (fromInput) fromInput.value = fromDate.toISOString().split('T')[0];
+                if (toInput) toInput.value = today.toISOString().split('T')[0];
             });
         });
 
-        // Apply custom dates
-        document.getElementById('apply-dates')?.addEventListener('click', function() {
-            document.querySelectorAll('.date-quick-btns .btn').forEach(b => b.classList.remove('active'));
+        // Custom date change handlers - clear active button when custom dates entered
+        ['projects', 'products', 'services'].forEach(section => {
+            const fromInput = document.getElementById(`${section}-from`);
+            const toInput = document.getElementById(`${section}-to`);
 
-            currentDateRange.from = document.getElementById('date-from').value;
-            currentDateRange.to = document.getElementById('date-to').value;
-            currentDateRange.days = null;
-
-            loadAllData();
+            [fromInput, toInput].forEach(input => {
+                if (input) {
+                    input.addEventListener('change', function() {
+                        // Clear active state from quick buttons
+                        document.querySelectorAll(`#${section}-controls .btn[data-days]`).forEach(b => b.classList.remove('active'));
+                        sectionDates[section].days = null;
+                    });
+                }
+            });
         });
 
-        function showLoading(show = true) {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay) {
-                overlay.classList.toggle('hidden', !show);
-            }
-        }
-
-        // Load all data
-        async function loadAllData() {
-            showLoading(true);
+        // Section load functions
+        async function loadProjectsSection() {
+            const dates = getDateRange('projects');
             try {
                 await Promise.all([
-                    loadProjectCharges(),
-                    loadProjectForecast(),
-                    loadTopProductsByCharges(),
-                    loadTopProductsByUtilisation(),
-                    loadTopServicesByCharges(),
-                    loadTopServicesByUtilisation(),
-                    loadUnderRateQuotes()
+                    loadProjectCharges(dates),
+                    loadProjectForecast()
                 ]);
+                // Save to cache
+                saveToCache(CACHE_KEYS.projects, {
+                    projectCharges: lastProjectChargesData,
+                    projectForecast: lastProjectForecastData,
+                    dates: dates
+                });
+                updateLastUpdated('projects', new Date().toISOString());
             } catch (error) {
-                console.error('Error loading data:', error);
-            } finally {
-                showLoading(false);
+                console.error('Error loading projects section:', error);
             }
         }
 
+        async function loadProductsSection() {
+            const dates = getDateRange('products');
+            try {
+                await Promise.all([
+                    loadTopProductsByCharges(dates),
+                    loadTopProductsByUtilisation(dates)
+                ]);
+                // Save to cache
+                saveToCache(CACHE_KEYS.products, {
+                    charges: lastProductsChargesData,
+                    utilisation: lastProductsUtilisationData,
+                    dates: dates
+                });
+                updateLastUpdated('products', new Date().toISOString());
+            } catch (error) {
+                console.error('Error loading products section:', error);
+            }
+        }
+
+        async function loadServicesSection() {
+            const dates = getDateRange('services');
+            try {
+                await Promise.all([
+                    loadTopServicesByCharges(dates),
+                    loadTopServicesByUtilisation(dates)
+                ]);
+                // Save to cache
+                saveToCache(CACHE_KEYS.services, {
+                    charges: lastServicesChargesData,
+                    utilisation: lastServicesUtilisationData,
+                    dates: dates
+                });
+                updateLastUpdated('services', new Date().toISOString());
+            } catch (error) {
+                console.error('Error loading services section:', error);
+            }
+        }
+
+        // Store last loaded data for caching
+        let lastProjectChargesData = null;
+        let lastProjectForecastData = null;
+        let lastProductsChargesData = null;
+        let lastProductsUtilisationData = null;
+        let lastServicesChargesData = null;
+        let lastServicesUtilisationData = null;
+        let lastUnderRateData = null;
+
         // Load Project Charges by Category
-        async function loadProjectCharges() {
+        async function loadProjectCharges(dates) {
             const container = document.getElementById('project-charges-table');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to
+                    from: dates.from,
+                    to: dates.to
                 });
-                console.log('Loading project charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/project-charges.php?${params}`);
                 const data = await response.json();
-                console.log('Project charges response:', data);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
+                lastProjectChargesData = { data: data.data, filters: data.filters };
                 renderProjectCharges(data.data, data.filters);
             } catch (error) {
                 container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
@@ -1085,6 +1187,7 @@ $subdomain = config('currentrms.subdomain') ?? '';
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
 
+                lastProjectForecastData = { data: data.data, filters: data.filters };
                 renderProjectForecast(data.data, data.filters);
             } catch (error) {
                 container.innerHTML = `<p class="text-muted text-center">Error: ${escapeHtml(error.message)}</p>`;
@@ -1143,24 +1246,24 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
 
         // Load Top Products by Charges
-        async function loadTopProductsByCharges() {
+        async function loadTopProductsByCharges(dates) {
             const container = document.getElementById('top-products-charges');
             const datesEl = document.getElementById('products-charges-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to,
+                    from: dates.from,
+                    to: dates.to,
                     limit: 20,
                     type: 'product'
                 });
-                console.log('Loading products by charges with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-charges.php?${params}`);
                 const data = await response.json();
-                console.log('Products by Charges DEBUG:', data.debug);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                lastProductsChargesData = { data: data.data, filters: data.filters };
 
                 // Update dates in header
                 if (datesEl && data.filters && data.filters.from && data.filters.to) {
@@ -1176,24 +1279,24 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
 
         // Load Top Products by Utilisation
-        async function loadTopProductsByUtilisation() {
+        async function loadTopProductsByUtilisation(dates) {
             const container = document.getElementById('top-products-utilisation');
             const datesEl = document.getElementById('products-utilisation-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to,
+                    from: dates.from,
+                    to: dates.to,
                     limit: 20,
                     type: 'product'
                 });
-                console.log('Loading products by utilisation with dates:', currentDateRange.from, 'to', currentDateRange.to);
                 const response = await fetch(`api/analytics/top-products-utilisation.php?${params}`);
                 const data = await response.json();
-                console.log('Products by Utilisation DEBUG:', data.debug);
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                lastProductsUtilisationData = { data: data.data, filters: data.filters };
 
                 // Update dates in header
                 if (datesEl && data.filters && data.filters.from && data.filters.to) {
@@ -1209,15 +1312,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
 
         // Load Top Services by Charges
-        async function loadTopServicesByCharges() {
+        async function loadTopServicesByCharges(dates) {
             const container = document.getElementById('top-services-charges');
             const datesEl = document.getElementById('services-charges-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to,
+                    from: dates.from,
+                    to: dates.to,
                     limit: 20,
                     type: 'service'
                 });
@@ -1225,6 +1328,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                lastServicesChargesData = { data: data.data, filters: data.filters };
 
                 // Update dates in header
                 if (datesEl && data.filters && data.filters.from && data.filters.to) {
@@ -1240,15 +1345,15 @@ $subdomain = config('currentrms.subdomain') ?? '';
         }
 
         // Load Top Services by Utilisation
-        async function loadTopServicesByUtilisation() {
+        async function loadTopServicesByUtilisation(dates) {
             const container = document.getElementById('top-services-utilisation');
             const datesEl = document.getElementById('services-utilisation-dates');
             container.innerHTML = '<div class="loading-placeholder"><div class="spinner"></div></div>';
 
             try {
                 const params = new URLSearchParams({
-                    from: currentDateRange.from,
-                    to: currentDateRange.to,
+                    from: dates.from,
+                    to: dates.to,
                     limit: 20,
                     type: 'service'
                 });
@@ -1256,6 +1361,8 @@ $subdomain = config('currentrms.subdomain') ?? '';
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error || 'Failed to load');
+
+                lastServicesUtilisationData = { data: data.data, filters: data.filters };
 
                 // Update dates in header
                 if (datesEl && data.filters && data.filters.from && data.filters.to) {
@@ -1319,30 +1426,39 @@ $subdomain = config('currentrms.subdomain') ?? '';
                     future_days: futureDays,
                     min_discount: minDiscount
                 });
-                console.log('Under-Rate Quotes - Sending params:', { past_days: pastDays, future_days: futureDays, min_discount: minDiscount });
                 const response = await fetch(`api/analytics/under-rate-quotes.php?${params}`);
                 const result = await response.json();
-                console.log('Under-Rate Quotes DEBUG:', result.debug);
-                console.log('Under-Rate Quotes filters:', result.filters);
 
                 if (!result.success) throw new Error(result.error || 'Failed to load');
 
                 const data = result.data;
                 const totals = data.totals;
 
-                // Update summary
-                document.getElementById('under-rate-total-items').textContent = totals.total_items.toLocaleString();
-                document.getElementById('under-rate-lost-revenue').textContent = currencySymbol + totals.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2});
-                document.getElementById('under-rate-avg-discount').textContent = totals.avg_discount + '%';
-                document.getElementById('under-rate-owners').textContent = totals.unique_owners.toLocaleString();
+                // Save to cache
+                lastUnderRateData = { data: data, filters: result.filters };
+                saveToCache(CACHE_KEYS.underRate, lastUnderRateData);
 
-                // Render owners accordion
-                renderOwnersAccordion(data.owner_summary, data.items);
+                // Render data
+                renderUnderRateData(data);
 
             } catch (error) {
                 console.error('Under-rate quotes error:', error);
                 document.getElementById('owners-accordion').innerHTML = `<p class="text-muted text-center" style="padding: 20px;">Error: ${escapeHtml(error.message)}</p>`;
             }
+        }
+
+        // Render under-rate data
+        function renderUnderRateData(data) {
+            const totals = data.totals;
+
+            // Update summary
+            document.getElementById('under-rate-total-items').textContent = totals.total_items.toLocaleString();
+            document.getElementById('under-rate-lost-revenue').textContent = currencySymbol + totals.total_lost_revenue.toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('under-rate-avg-discount').textContent = totals.avg_discount + '%';
+            document.getElementById('under-rate-owners').textContent = totals.unique_owners.toLocaleString();
+
+            // Render owners accordion
+            renderOwnersAccordion(data.owner_summary, data.items);
         }
 
         function renderOwnersAccordion(owners, allItems) {
@@ -1471,16 +1587,108 @@ $subdomain = config('currentrms.subdomain') ?? '';
             return div.innerHTML;
         }
 
+        // Load cached data for all sections
+        function loadCachedData() {
+            // Initialize all section date inputs
+            ['projects', 'products', 'services'].forEach(initSectionDates);
+
+            // Try to load Projects section from cache
+            const projectsCache = loadFromCache(CACHE_KEYS.projects);
+            if (projectsCache && projectsCache.data) {
+                const cached = projectsCache.data;
+                if (cached.projectCharges) {
+                    renderProjectCharges(cached.projectCharges.data, cached.projectCharges.filters);
+                }
+                if (cached.projectForecast) {
+                    renderProjectForecast(cached.projectForecast.data, cached.projectForecast.filters);
+                }
+                updateLastUpdated('projects', projectsCache.timestamp);
+            } else {
+                // Show "click refresh" messages for projects
+                document.getElementById('project-charges-table').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+                document.getElementById('project-forecast-table').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+            }
+
+            // Try to load Products section from cache
+            const productsCache = loadFromCache(CACHE_KEYS.products);
+            if (productsCache && productsCache.data) {
+                const cached = productsCache.data;
+                if (cached.charges) {
+                    const container = document.getElementById('top-products-charges');
+                    const datesEl = document.getElementById('products-charges-dates');
+                    if (datesEl && cached.charges.filters) {
+                        const fromDate = new Date(cached.charges.filters.from).toLocaleDateString();
+                        const toDate = new Date(cached.charges.filters.to).toLocaleDateString();
+                        datesEl.textContent = `${fromDate} - ${toDate}`;
+                    }
+                    renderProductList(container, cached.charges.data, 'charges');
+                }
+                if (cached.utilisation) {
+                    const container = document.getElementById('top-products-utilisation');
+                    const datesEl = document.getElementById('products-utilisation-dates');
+                    if (datesEl && cached.utilisation.filters) {
+                        const fromDate = new Date(cached.utilisation.filters.from).toLocaleDateString();
+                        const toDate = new Date(cached.utilisation.filters.to).toLocaleDateString();
+                        datesEl.textContent = `${fromDate} - ${toDate}`;
+                    }
+                    renderProductList(container, cached.utilisation.data, 'utilisation');
+                }
+                updateLastUpdated('products', productsCache.timestamp);
+            } else {
+                // Show "click refresh" messages for products
+                document.getElementById('top-products-charges').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+                document.getElementById('top-products-utilisation').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+            }
+
+            // Try to load Services section from cache
+            const servicesCache = loadFromCache(CACHE_KEYS.services);
+            if (servicesCache && servicesCache.data) {
+                const cached = servicesCache.data;
+                if (cached.charges) {
+                    const container = document.getElementById('top-services-charges');
+                    const datesEl = document.getElementById('services-charges-dates');
+                    if (datesEl && cached.charges.filters) {
+                        const fromDate = new Date(cached.charges.filters.from).toLocaleDateString();
+                        const toDate = new Date(cached.charges.filters.to).toLocaleDateString();
+                        datesEl.textContent = `${fromDate} - ${toDate}`;
+                    }
+                    renderProductList(container, cached.charges.data, 'charges');
+                }
+                if (cached.utilisation) {
+                    const container = document.getElementById('top-services-utilisation');
+                    const datesEl = document.getElementById('services-utilisation-dates');
+                    if (datesEl && cached.utilisation.filters) {
+                        const fromDate = new Date(cached.utilisation.filters.from).toLocaleDateString();
+                        const toDate = new Date(cached.utilisation.filters.to).toLocaleDateString();
+                        datesEl.textContent = `${fromDate} - ${toDate}`;
+                    }
+                    renderProductList(container, cached.utilisation.data, 'utilisation');
+                }
+                updateLastUpdated('services', servicesCache.timestamp);
+            } else {
+                // Show "click refresh" messages for services
+                document.getElementById('top-services-charges').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+                document.getElementById('top-services-utilisation').innerHTML = '<p class="text-muted text-center">Click Refresh to load data</p>';
+            }
+
+            // Try to load Under-Rate section from cache
+            const underRateCache = loadFromCache(CACHE_KEYS.underRate);
+            if (underRateCache && underRateCache.data && underRateCache.data.data) {
+                renderUnderRateData(underRateCache.data.data);
+            } else {
+                // Show "click refresh" message for under-rate
+                document.getElementById('under-rate-total-items').textContent = '-';
+                document.getElementById('under-rate-lost-revenue').textContent = '-';
+                document.getElementById('under-rate-avg-discount').textContent = '-';
+                document.getElementById('under-rate-owners').textContent = '-';
+                document.getElementById('owners-accordion').innerHTML = '<p class="text-muted text-center" style="padding: 20px;">Click Refresh to load data</p>';
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            initDates();
-            loadAllData();
+            loadCachedData();
         });
-
-        // Listen for control changes
-        document.getElementById('under-rate-past')?.addEventListener('change', loadUnderRateQuotes);
-        document.getElementById('under-rate-future')?.addEventListener('change', loadUnderRateQuotes);
-        document.getElementById('under-rate-min-discount')?.addEventListener('change', loadUnderRateQuotes);
     </script>
 </body>
 </html>
