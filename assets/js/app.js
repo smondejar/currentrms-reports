@@ -442,7 +442,7 @@ const ReportBuilder = {
         // Use filter config if available, otherwise use columns
         const filterOptions = this.filterConfig && Object.keys(this.filterConfig).length > 0
             ? Object.entries(this.filterConfig).map(([key, config]) =>
-                `<option value="${key}" data-type="${config.type}" data-options='${JSON.stringify(config.options || [])}'>${config.label}</option>`
+                `<option value="${key}" data-type="${config.type}" data-dynamic-field="${config.dynamic_field || ''}" data-options='${JSON.stringify(config.options || [])}'>${config.label}</option>`
             ).join('')
             : this.availableColumns.map(col =>
                 `<option value="${col.key}">${col.label}</option>`
@@ -486,7 +486,7 @@ const ReportBuilder = {
             });
     },
 
-    updateFilterValueInput(selectElement) {
+    async updateFilterValueInput(selectElement) {
         const filterRow = selectElement.closest('.filter-row');
         const valueContainer = filterRow.querySelector('.filter-value-container');
         const selectedOption = selectElement.selectedOptions[0];
@@ -497,6 +497,7 @@ const ReportBuilder = {
         }
 
         const fieldType = selectedOption.dataset.type || 'text';
+        const dynamicField = selectedOption.dataset.dynamicField || '';
         let options = [];
         try {
             options = JSON.parse(selectedOption.dataset.options || '[]');
@@ -506,22 +507,51 @@ const ReportBuilder = {
 
         let inputHtml = '';
 
-        if (fieldType === 'select' && options.length > 0) {
-            // Show dropdown for select fields
+        if (fieldType === 'dynamic' && dynamicField) {
+            // Show loading state
+            valueContainer.innerHTML = '<select class="form-control filter-value" disabled><option>Loading...</option></select>';
+
+            try {
+                // Fetch dynamic values from CurrentRMS
+                const response = await fetch(`api/field-values.php?field=${encodeURIComponent(dynamicField)}&module=${encodeURIComponent(this.currentModule)}`);
+                const data = await response.json();
+
+                if (data.success && data.values && data.values.length > 0) {
+                    const optionHtml = data.values.map(v => {
+                        const escapedValue = String(v.value).replace(/"/g, '&quot;');
+                        const escapedLabel = String(v.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return `<option value="${escapedValue}">${escapedLabel}</option>`;
+                    }).join('');
+                    inputHtml = `<select class="form-control filter-value">
+                        <option value="">Select value...</option>
+                        ${optionHtml}
+                    </select>`;
+                } else {
+                    // Fallback to text input if no values found
+                    inputHtml = '<input type="text" class="form-control filter-value" placeholder="Type value...">';
+                }
+            } catch (e) {
+                console.error('Failed to load dynamic values:', e);
+                // Fallback to text input on error
+                inputHtml = '<input type="text" class="form-control filter-value" placeholder="Type value...">';
+            }
+
+            valueContainer.innerHTML = inputHtml;
+        } else if (fieldType === 'select' && options.length > 0) {
+            // Show dropdown for select fields with static options
             const optionHtml = options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
             inputHtml = `<select class="form-control filter-value">
                 <option value="">Select value...</option>
                 ${optionHtml}
             </select>`;
+            valueContainer.innerHTML = inputHtml;
         } else if (fieldType === 'date') {
-            inputHtml = '<input type="date" class="form-control filter-value">';
+            valueContainer.innerHTML = '<input type="date" class="form-control filter-value">';
         } else if (fieldType === 'number') {
-            inputHtml = '<input type="number" class="form-control filter-value" placeholder="Value" step="any">';
+            valueContainer.innerHTML = '<input type="number" class="form-control filter-value" placeholder="Value" step="any">';
         } else {
-            inputHtml = '<input type="text" class="form-control filter-value" placeholder="Value">';
+            valueContainer.innerHTML = '<input type="text" class="form-control filter-value" placeholder="Value">';
         }
-
-        valueContainer.innerHTML = inputHtml;
     },
 
     getFilters() {
