@@ -454,6 +454,10 @@ if ($api) {
                     </div>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
     <!-- Add Widget Modal -->
     <div class="modal-overlay" id="add-widget-modal" style="display: none;">
         <div class="modal" style="max-width: 600px;">
@@ -513,9 +517,6 @@ if ($api) {
             </div>
         </div>
     </div>
-        </div>
-    </div>
-</div>
 
     <script>
         // Set currency symbol from config
