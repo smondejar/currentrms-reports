@@ -228,20 +228,25 @@ class ReportManager
 
         if ($isAdmin) {
             $reports = Database::fetchAll(
-                "SELECT r.id, r.name, r.module, r.description, r.is_public, r.user_id, u.name as user_name
+                "SELECT r.id, r.name, r.module, r.description, r.config, r.is_public, r.user_id, u.name as user_name
                  FROM {$prefix}reports r
                  LEFT JOIN {$prefix}users u ON r.user_id = u.id
                  ORDER BY r.name ASC"
             );
         } else {
             $reports = Database::fetchAll(
-                "SELECT r.id, r.name, r.module, r.description, r.is_public, r.user_id, u.name as user_name
+                "SELECT r.id, r.name, r.module, r.description, r.config, r.is_public, r.user_id, u.name as user_name
                  FROM {$prefix}reports r
                  LEFT JOIN {$prefix}users u ON r.user_id = u.id
                  WHERE r.user_id = ? OR r.is_public = 1
                  ORDER BY r.name ASC",
                 [$userId]
             );
+        }
+
+        // Decode config for each report
+        foreach ($reports as &$report) {
+            $report['config'] = json_decode($report['config'] ?? '{}', true);
         }
 
         return $reports;

@@ -628,13 +628,30 @@ if ($api) {
         let savedWidgets = JSON.parse(localStorage.getItem('dashboard_report_widgets') || '[]');
         let widgetIdCounter = savedWidgets.length > 0 ? Math.max(...savedWidgets.map(w => w.id || 0)) + 1 : 1;
 
-        // Load saved widgets on page load
+        // Load saved widgets on page load and setup event handlers
         document.addEventListener('DOMContentLoaded', function() {
             loadSavedWidgets();
+
+            // Setup widget type change handler once
+            const widgetTypeSelect = document.getElementById('widget-type-select');
+            if (widgetTypeSelect) {
+                widgetTypeSelect.addEventListener('change', function() {
+                    const chartTypes = ['chart_bar', 'chart_line', 'chart_pie', 'stat_card'];
+                    document.getElementById('widget-chart-options').style.display =
+                        chartTypes.includes(this.value) ? 'block' : 'none';
+                });
+            }
         });
 
         async function showAddWidgetModal() {
             document.getElementById('add-widget-modal').style.display = 'flex';
+            // Reset form
+            document.getElementById('widget-report-select').value = '';
+            document.getElementById('widget-type-select').value = 'table';
+            document.getElementById('widget-chart-options').style.display = 'none';
+            document.getElementById('widget-group-by').innerHTML = '<option value="">-- Select field --</option>';
+            document.getElementById('widget-aggregate-field').innerHTML = '<option value="">Count (rows)</option>';
+            document.getElementById('widget-limit').value = '10';
 
             // Load available reports
             try {
@@ -652,17 +669,12 @@ if ($api) {
                         option.dataset.config = JSON.stringify(report.config || {});
                         select.appendChild(option);
                     });
+                } else {
+                    console.error('Failed to load reports:', data.error);
                 }
             } catch (e) {
                 console.error('Failed to load reports:', e);
             }
-
-            // Show/hide chart options based on widget type
-            document.getElementById('widget-type-select').addEventListener('change', function() {
-                const chartTypes = ['chart_bar', 'chart_line', 'chart_pie', 'stat_card'];
-                document.getElementById('widget-chart-options').style.display =
-                    chartTypes.includes(this.value) ? 'block' : 'none';
-            });
         }
 
         function hideAddWidgetModal() {
@@ -859,6 +871,7 @@ if ($api) {
         function formatValue(value, field) {
             if (value === null || value === undefined) return '-';
             if (typeof value === 'number') {
+                const currencySymbol = window.APP_CURRENCY || '£';
                 if (field && (field.includes('total') || field.includes('charge') || field.includes('price') || field.includes('cost') || field.includes('revenue'))) {
                     return currencySymbol + value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }

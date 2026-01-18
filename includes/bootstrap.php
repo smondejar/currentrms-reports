@@ -225,6 +225,20 @@ function validateCsrf(): bool
 }
 
 /**
+ * Verify CSRF token (accepts token as parameter)
+ */
+function verifyCsrfToken(string $token): bool
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (empty($token)) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'] ?? '', $token);
+}
+
+/**
  * Generate CSRF token
  */
 function csrfToken(): string
