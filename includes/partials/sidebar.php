@@ -26,6 +26,13 @@
                 </svg>
                 Reports
             </a>
+            <a href="saved-reports.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'saved-reports.php' ? 'active' : ''; ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                    <path d="M17 21v-8H7v8M7 3v5h8"/>
+                </svg>
+                Saved Reports
+            </a>
             <a href="analytics.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) === 'analytics.php' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 20V10M12 20V4M6 20v-6"/>
