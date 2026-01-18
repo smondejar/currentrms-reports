@@ -783,13 +783,22 @@ if ($api) {
             const aggregateFunc = document.getElementById('widget-aggregate-func').value;
             const limit = document.getElementById('widget-limit').value;
 
+            console.log('addReportWidget called with:', { reportId, widgetType, groupBy, aggregateField, aggregateFunc, limit });
+            console.log('Available reports:', availableReports);
+
             if (!reportId) {
                 alert('Please select a report');
                 return;
             }
 
-            const report = availableReports.find(r => r.id == reportId);
-            if (!report) return;
+            const report = availableReports.find(r => String(r.id) === String(reportId));
+            console.log('Found report:', report);
+
+            if (!report) {
+                alert('Error: Report not found in available reports');
+                console.error('Report ID not found:', reportId, 'Available IDs:', availableReports.map(r => r.id));
+                return;
+            }
 
             const widget = {
                 id: widgetIdCounter++,
@@ -802,6 +811,8 @@ if ($api) {
                 aggregateFunc: aggregateFunc,
                 limit: limit
             };
+
+            console.log('Creating widget:', widget);
 
             savedWidgets.push(widget);
             localStorage.setItem('dashboard_report_widgets', JSON.stringify(savedWidgets));
