@@ -162,28 +162,6 @@ if ($api) {
                         'starts_at' => ['label' => 'Start Date', 'type' => 'date', 'predicates' => ['eq', 'lt', 'gt', 'lteq', 'gteq']],
                     ],
                 ],
-                'purchase_orders' => [
-                    'name' => 'Purchase Orders',
-                    'icon' => 'shopping-cart',
-                    'endpoint' => 'purchase_orders',
-                    'columns' => [
-                        'id' => ['label' => 'ID', 'type' => 'number'],
-                        'number' => ['label' => 'PO Number', 'type' => 'string'],
-                        'supplier_name' => ['label' => 'Supplier', 'type' => 'string'],
-                        'status' => ['label' => 'Status', 'type' => 'string'],
-                        'order_date' => ['label' => 'Order Date', 'type' => 'date'],
-                        'expected_date' => ['label' => 'Expected Date', 'type' => 'date'],
-                        'subtotal' => ['label' => 'Subtotal', 'type' => 'currency'],
-                        'tax_total' => ['label' => 'Tax', 'type' => 'currency'],
-                        'total' => ['label' => 'Total', 'type' => 'currency'],
-                        'created_at' => ['label' => 'Created', 'type' => 'datetime'],
-                    ],
-                    'filters' => [
-                        'number' => ['label' => 'PO Number', 'type' => 'text', 'predicates' => ['cont', 'eq']],
-                        'status' => ['label' => 'Status', 'type' => 'select', 'options' => ['Draft', 'Sent', 'Received', 'Cancelled'], 'predicates' => ['eq']],
-                        'order_date' => ['label' => 'Order Date', 'type' => 'date', 'predicates' => ['eq', 'lt', 'gt', 'lteq', 'gteq']],
-                    ],
-                ],
                 'stock_levels' => [
                     'name' => 'Stock Levels',
                     'icon' => 'package',

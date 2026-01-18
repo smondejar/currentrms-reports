@@ -668,7 +668,6 @@ $subdomain = config('currentrms.subdomain') ?? '';
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px;
             color: var(--gray-500);
         }
     </style>

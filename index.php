@@ -29,13 +29,11 @@ $stats = [
     'opportunities' => ['count' => 0, 'error' => null],
     'revenue' => ['value' => 0, 'error' => null],
     'invoices' => ['count' => 0, 'error' => null],
-    'products' => ['count' => 0, 'error' => null],
 ];
 
 $recentInvoices = [];
 $upcomingEvents = [];
 $revenueData = ['labels' => [], 'values' => []];
-$opportunityData = ['labels' => [], 'values' => []];
 
 if ($api) {
     try {
@@ -58,17 +56,6 @@ if ($api) {
         $stats['invoices']['count'] = $invResponse['meta']['total_row_count'] ?? 0;
     } catch (Exception $e) {
         $stats['invoices']['error'] = $e->getMessage();
-    }
-
-    try {
-        // Get products count
-        $prodResponse = $api->get('products', [
-            'per_page' => 1,
-            'filtermode' => 'active'
-        ]);
-        $stats['products']['count'] = $prodResponse['meta']['total_row_count'] ?? 0;
-    } catch (Exception $e) {
-        $stats['products']['error'] = $e->getMessage();
     }
 
     try {
@@ -126,23 +113,6 @@ if ($api) {
         $upcomingEvents = $upcomingResponse['opportunities'] ?? [];
     } catch (Exception $e) {
         // Silently fail for timeline
-    }
-
-    try {
-        // Get opportunity status breakdown for pie chart
-        $statusCounts = [];
-        $allOppResponse = $api->get('opportunities', [
-            'per_page' => 100,
-            'filtermode' => 'active'
-        ]);
-        foreach ($allOppResponse['opportunities'] ?? [] as $opp) {
-            $status = $opp['status'] ?? 'Unknown';
-            $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
-        }
-        $opportunityData['labels'] = array_keys($statusCounts);
-        $opportunityData['values'] = array_values($statusCounts);
-    } catch (Exception $e) {
-        // Silently fail for chart
     }
 
     try {
@@ -281,58 +251,23 @@ if ($api) {
                         </div>
                     </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon info">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label">Products in Stock</div>
-                            <div class="stat-value">
-                                <?php if ($stats['products']['error']): ?>
-                                    <span class="text-danger" style="font-size: 14px;">Error</span>
-                                <?php else: ?>
-                                    <?php echo number_format($stats['products']['count']); ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Dashboard Grid -->
                 <div class="dashboard-grid" id="dashboard-grid">
-                    <!-- Revenue Chart -->
-                    <div class="widget" style="grid-column: span 6;">
+                    <!-- Charges by Month Chart -->
+                    <div class="widget" style="grid-column: span 12;">
                         <div class="widget-header">
-                            <span class="widget-title">Revenue by Month</span>
+                            <span class="widget-title">Charges by Month</span>
                         </div>
                         <div class="widget-body">
                             <div class="chart-container">
                                 <?php if (empty($revenueData['values'])): ?>
                                     <div class="empty-state" style="padding: 40px 20px;">
-                                        <p class="text-muted">No revenue data available</p>
+                                        <p class="text-muted">No charge data available</p>
                                     </div>
                                 <?php else: ?>
-                                    <canvas id="chart-revenue"></canvas>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Opportunities Chart -->
-                    <div class="widget" style="grid-column: span 6;">
-                        <div class="widget-header">
-                            <span class="widget-title">Opportunities by Status</span>
-                        </div>
-                        <div class="widget-body">
-                            <div class="chart-container">
-                                <?php if (empty($opportunityData['values'])): ?>
-                                    <div class="empty-state" style="padding: 40px 20px;">
-                                        <p class="text-muted">No opportunity data available</p>
-                                    </div>
-                                <?php else: ?>
-                                    <canvas id="chart-opportunities"></canvas>
+                                    <canvas id="chart-charges"></canvas>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -390,11 +325,12 @@ if ($api) {
                                                 <th>Customer</th>
                                                 <th class="text-right">Amount</th>
                                                 <th>Status</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php foreach ($recentInvoices as $invoice): ?>
-                                                <tr>
+                                                <tr data-invoice-id="<?php echo $invoice['id']; ?>">
                                                     <td><?php echo e($invoice['number'] ?? $invoice['id']); ?></td>
                                                     <td><?php echo e($invoice['member']['name'] ?? 'N/A'); ?></td>
                                                     <td class="text-right"><?php echo formatCurrency($invoice['total'] ?? 0); ?></td>
@@ -408,9 +344,30 @@ if ($api) {
                                                             default => 'badge-gray'
                                                         };
                                                         ?>
-                                                        <span class="badge <?php echo $badgeClass; ?>">
+                                                        <span class="badge <?php echo $badgeClass; ?>" id="invoice-status-<?php echo $invoice['id']; ?>">
                                                             <?php echo ucfirst($state); ?>
                                                         </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group" style="display: flex; gap: 4px;">
+                                                            <?php if ($state === 'draft'): ?>
+                                                                <button class="btn btn-sm btn-primary" onclick="issueInvoice(<?php echo $invoice['id']; ?>)" title="Issue Invoice">
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                                                                    </svg>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                            <?php if ($state === 'sent' || $state === 'approved'): ?>
+                                                                <button class="btn btn-sm btn-success" onclick="markInvoicePaid(<?php echo $invoice['id']; ?>)" title="Mark as Paid">
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M20 6L9 17l-5-5"/>
+                                                                    </svg>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                            <?php if ($state === 'paid'): ?>
+                                                                <span class="text-muted" style="font-size: 11px;">Completed</span>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -418,6 +375,24 @@ if ($api) {
                                     </table>
                                 </div>
                             <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Widgets Section -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h3 class="card-title">Report Widgets</h3>
+                        <button class="btn btn-sm btn-primary" onclick="showAddWidgetModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                            Add Widget
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="report-widgets-container" class="dashboard-grid" style="grid-template-columns: repeat(12, 1fr);">
+                            <p class="text-muted" id="no-widgets-msg">No report widgets added yet. Click "Add Widget" to add a report-based widget to your dashboard.</p>
                         </div>
                     </div>
                 </div>
@@ -478,9 +453,69 @@ if ($api) {
                         <?php endif; ?>
                     </div>
                 </div>
+
+    <!-- Add Widget Modal -->
+    <div class="modal-overlay" id="add-widget-modal" style="display: none;">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Report Widget</h3>
+                <button class="modal-close" onclick="hideAddWidgetModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Report</label>
+                    <select id="widget-report-select" class="form-control" onchange="onReportSelected()">
+                        <option value="">-- Select a report --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Widget Type</label>
+                    <select id="widget-type-select" class="form-control">
+                        <option value="table">Table</option>
+                        <option value="chart_bar">Bar Chart</option>
+                        <option value="chart_line">Line Chart</option>
+                        <option value="chart_pie">Pie Chart</option>
+                        <option value="stat_card">Stat Card</option>
+                    </select>
+                </div>
+                <div id="widget-chart-options" style="display: none;">
+                    <div class="form-group">
+                        <label>Group By Field</label>
+                        <select id="widget-group-by" class="form-control">
+                            <option value="">-- Select field --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Aggregate Field (for values)</label>
+                        <select id="widget-aggregate-field" class="form-control">
+                            <option value="">Count (rows)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Aggregate Function</label>
+                        <select id="widget-aggregate-func" class="form-control">
+                            <option value="count">Count</option>
+                            <option value="sum">Sum</option>
+                            <option value="avg">Average</option>
+                            <option value="min">Minimum</option>
+                            <option value="max">Maximum</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Limit (rows/items)</label>
+                    <input type="number" id="widget-limit" class="form-control" value="10" min="1" max="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideAddWidgetModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="addReportWidget()">Add Widget</button>
             </div>
         </div>
     </div>
+        </div>
+    </div>
+</div>
 
     <script>
         // Set currency symbol from config
@@ -492,15 +527,15 @@ if ($api) {
             const currencySymbol = window.APP_CURRENCY || '£';
 
             <?php if (!empty($revenueData['values'])): ?>
-            // Revenue Chart
-            const revenueCtx = document.getElementById('chart-revenue');
-            if (revenueCtx) {
-                new Chart(revenueCtx, {
+            // Charges by Month Chart
+            const chargesCtx = document.getElementById('chart-charges');
+            if (chargesCtx) {
+                new Chart(chargesCtx, {
                     type: 'bar',
                     data: {
                         labels: <?php echo json_encode($revenueData['labels']); ?>,
                         datasets: [{
-                            label: 'Revenue',
+                            label: 'Charges',
                             data: <?php echo json_encode($revenueData['values']); ?>,
                             backgroundColor: 'rgba(102, 126, 234, 0.8)',
                         }]
@@ -523,29 +558,321 @@ if ($api) {
                 });
             }
             <?php endif; ?>
-
-            <?php if (!empty($opportunityData['values'])): ?>
-            // Opportunities Chart
-            const oppCtx = document.getElementById('chart-opportunities');
-            if (oppCtx) {
-                new Chart(oppCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: <?php echo json_encode($opportunityData['labels']); ?>,
-                        datasets: [{
-                            data: <?php echo json_encode($opportunityData['values']); ?>,
-                            backgroundColor: ['#10b981', '#667eea', '#f59e0b', '#9ca3af', '#ef4444', '#8b5cf6'],
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
-            }
-            <?php endif; ?>
         });
+
+        // Invoice Actions
+        async function issueInvoice(invoiceId) {
+            if (!confirm('Issue this invoice? This will send it to the customer.')) return;
+
+            try {
+                const response = await fetch('api/invoices/action.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ invoice_id: invoiceId, action: 'issue' })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // Update the status badge
+                    const badge = document.getElementById('invoice-status-' + invoiceId);
+                    if (badge) {
+                        badge.textContent = 'Sent';
+                        badge.className = 'badge badge-warning';
+                    }
+                    // Reload page to update buttons
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to issue invoice'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function markInvoicePaid(invoiceId) {
+            if (!confirm('Mark this invoice as paid?')) return;
+
+            try {
+                const response = await fetch('api/invoices/action.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ invoice_id: invoiceId, action: 'mark_paid' })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // Update the status badge
+                    const badge = document.getElementById('invoice-status-' + invoiceId);
+                    if (badge) {
+                        badge.textContent = 'Paid';
+                        badge.className = 'badge badge-success';
+                    }
+                    // Reload page to update buttons
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to mark invoice as paid'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Report Widget Functions
+        let availableReports = [];
+        let savedWidgets = JSON.parse(localStorage.getItem('dashboard_report_widgets') || '[]');
+        let widgetIdCounter = savedWidgets.length > 0 ? Math.max(...savedWidgets.map(w => w.id || 0)) + 1 : 1;
+
+        // Load saved widgets on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedWidgets();
+        });
+
+        async function showAddWidgetModal() {
+            document.getElementById('add-widget-modal').style.display = 'flex';
+
+            // Load available reports
+            try {
+                const response = await fetch('api/dashboard/list-reports.php');
+                const data = await response.json();
+                if (data.success) {
+                    availableReports = data.reports;
+                    const select = document.getElementById('widget-report-select');
+                    select.innerHTML = '<option value="">-- Select a report --</option>';
+                    data.reports.forEach(report => {
+                        const option = document.createElement('option');
+                        option.value = report.id;
+                        option.textContent = `${report.name} (${report.module})`;
+                        option.dataset.module = report.module;
+                        option.dataset.config = JSON.stringify(report.config || {});
+                        select.appendChild(option);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load reports:', e);
+            }
+
+            // Show/hide chart options based on widget type
+            document.getElementById('widget-type-select').addEventListener('change', function() {
+                const chartTypes = ['chart_bar', 'chart_line', 'chart_pie', 'stat_card'];
+                document.getElementById('widget-chart-options').style.display =
+                    chartTypes.includes(this.value) ? 'block' : 'none';
+            });
+        }
+
+        function hideAddWidgetModal() {
+            document.getElementById('add-widget-modal').style.display = 'none';
+        }
+
+        async function onReportSelected() {
+            const select = document.getElementById('widget-report-select');
+            const reportId = select.value;
+            if (!reportId) return;
+
+            const option = select.options[select.selectedIndex];
+            const module = option.dataset.module;
+
+            // Load module columns for group by / aggregate options
+            try {
+                const response = await fetch(`api/modules.php?module=${module}&action=columns`);
+                const data = await response.json();
+                if (data.columns) {
+                    const groupBySelect = document.getElementById('widget-group-by');
+                    const aggregateSelect = document.getElementById('widget-aggregate-field');
+
+                    groupBySelect.innerHTML = '<option value="">-- Select field --</option>';
+                    aggregateSelect.innerHTML = '<option value="">Count (rows)</option>';
+
+                    data.columns.forEach(col => {
+                        const opt1 = document.createElement('option');
+                        opt1.value = col.key;
+                        opt1.textContent = col.label;
+                        groupBySelect.appendChild(opt1);
+
+                        if (col.type === 'number' || col.type === 'currency') {
+                            const opt2 = document.createElement('option');
+                            opt2.value = col.key;
+                            opt2.textContent = col.label;
+                            aggregateSelect.appendChild(opt2);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load columns:', e);
+            }
+        }
+
+        async function addReportWidget() {
+            const reportId = document.getElementById('widget-report-select').value;
+            const widgetType = document.getElementById('widget-type-select').value;
+            const groupBy = document.getElementById('widget-group-by').value;
+            const aggregateField = document.getElementById('widget-aggregate-field').value;
+            const aggregateFunc = document.getElementById('widget-aggregate-func').value;
+            const limit = document.getElementById('widget-limit').value;
+
+            if (!reportId) {
+                alert('Please select a report');
+                return;
+            }
+
+            const report = availableReports.find(r => r.id == reportId);
+            if (!report) return;
+
+            const widget = {
+                id: widgetIdCounter++,
+                reportId: reportId,
+                reportName: report.name,
+                module: report.module,
+                type: widgetType,
+                groupBy: groupBy,
+                aggregateField: aggregateField,
+                aggregateFunc: aggregateFunc,
+                limit: limit
+            };
+
+            savedWidgets.push(widget);
+            localStorage.setItem('dashboard_report_widgets', JSON.stringify(savedWidgets));
+
+            hideAddWidgetModal();
+            renderWidget(widget);
+        }
+
+        function loadSavedWidgets() {
+            if (savedWidgets.length > 0) {
+                document.getElementById('no-widgets-msg').style.display = 'none';
+                savedWidgets.forEach(widget => renderWidget(widget));
+            }
+        }
+
+        async function renderWidget(widget) {
+            document.getElementById('no-widgets-msg').style.display = 'none';
+            const container = document.getElementById('report-widgets-container');
+
+            const widgetEl = document.createElement('div');
+            widgetEl.className = 'widget';
+            widgetEl.style.gridColumn = 'span 6';
+            widgetEl.id = `widget-${widget.id}`;
+            widgetEl.innerHTML = `
+                <div class="widget-header">
+                    <span class="widget-title">${escapeHtml(widget.reportName)}</span>
+                    <button class="btn btn-sm btn-secondary" onclick="removeWidget(${widget.id})" title="Remove">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="widget-body">
+                    <div class="loading-placeholder"><div class="spinner"></div></div>
+                </div>
+            `;
+            container.appendChild(widgetEl);
+
+            // Fetch widget data
+            try {
+                const params = new URLSearchParams({
+                    report_id: widget.reportId,
+                    type: widget.type,
+                    limit: widget.limit
+                });
+                if (widget.groupBy) params.append('group_by', widget.groupBy);
+                if (widget.aggregateField) params.append('aggregate_field', widget.aggregateField);
+                if (widget.aggregateFunc) params.append('aggregate_func', widget.aggregateFunc);
+
+                const response = await fetch(`api/dashboard/report-widget.php?${params}`);
+                const data = await response.json();
+
+                const body = widgetEl.querySelector('.widget-body');
+                if (data.error) {
+                    body.innerHTML = `<p class="text-danger">${escapeHtml(data.error)}</p>`;
+                    return;
+                }
+
+                // Render based on widget type
+                if (widget.type === 'stat_card') {
+                    body.innerHTML = `<div class="stat-value" style="font-size: 2rem; text-align: center; padding: 20px;">${formatValue(data.value, widget.aggregateField)}</div>`;
+                } else if (widget.type.startsWith('chart_')) {
+                    if (data.chart && data.chart.labels) {
+                        const chartId = `chart-widget-${widget.id}`;
+                        body.innerHTML = `<div class="chart-container"><canvas id="${chartId}"></canvas></div>`;
+                        const chartType = widget.type.replace('chart_', '');
+                        new Chart(document.getElementById(chartId), {
+                            type: chartType === 'pie' ? 'pie' : chartType,
+                            data: {
+                                labels: data.chart.labels,
+                                datasets: [{
+                                    label: widget.reportName,
+                                    data: data.chart.values,
+                                    backgroundColor: chartType === 'pie' ?
+                                        ['#10b981', '#667eea', '#f59e0b', '#9ca3af', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'] :
+                                        'rgba(102, 126, 234, 0.8)',
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: chartType === 'pie', position: 'bottom' } }
+                            }
+                        });
+                    } else {
+                        body.innerHTML = '<p class="text-muted">No data available</p>';
+                    }
+                } else {
+                    // Table
+                    if (data.data && data.data.length > 0) {
+                        const columns = data.columns || Object.keys(data.data[0]);
+                        let html = '<div class="table-container"><table class="table"><thead><tr>';
+                        columns.forEach(col => html += `<th>${escapeHtml(col)}</th>`);
+                        html += '</tr></thead><tbody>';
+                        data.data.forEach(row => {
+                            html += '<tr>';
+                            columns.forEach(col => html += `<td>${escapeHtml(String(row[col] ?? ''))}</td>`);
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table></div>';
+                        body.innerHTML = html;
+                    } else {
+                        body.innerHTML = '<p class="text-muted">No data available</p>';
+                    }
+                }
+            } catch (e) {
+                const body = widgetEl.querySelector('.widget-body');
+                body.innerHTML = `<p class="text-danger">Error loading widget: ${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        function removeWidget(widgetId) {
+            if (!confirm('Remove this widget?')) return;
+            savedWidgets = savedWidgets.filter(w => w.id !== widgetId);
+            localStorage.setItem('dashboard_report_widgets', JSON.stringify(savedWidgets));
+            const el = document.getElementById(`widget-${widgetId}`);
+            if (el) el.remove();
+            if (savedWidgets.length === 0) {
+                document.getElementById('no-widgets-msg').style.display = 'block';
+            }
+        }
+
+        function formatValue(value, field) {
+            if (value === null || value === undefined) return '-';
+            if (typeof value === 'number') {
+                if (field && (field.includes('total') || field.includes('charge') || field.includes('price') || field.includes('cost') || field.includes('revenue'))) {
+                    return currencySymbol + value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+                return value.toLocaleString();
+            }
+            return String(value);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>
